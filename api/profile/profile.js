@@ -384,4 +384,119 @@ router.get("/learning-analytics", async (req, res) => {
   }
 });
 
+/**
+ * GET /api/profile/reports/by-subject/:subjectId
+ * [B5] Get topic reports for a specific subject.
+ * Returns reports ordered by most recent, with topic and chapter context.
+ */
+router.get("/reports/by-subject/:subjectId", async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const subjectId = parseInt(req.params.subjectId);
+
+    if (isNaN(subjectId)) {
+      return res.status(400).json({ error: "Invalid subjectId." });
+    }
+
+    // Verify user is enrolled in this subject
+    const enrolled = await prisma.userSubject.findUnique({
+      where: {
+        user_id_subject_id: { user_id: userId, subject_id: subjectId },
+      },
+    });
+
+    if (!enrolled) {
+      return res.status(403).json({ error: "You are not enrolled in this subject." });
+    }
+
+    const reports = await prisma.userTopicReport.findMany({
+      where: {
+        user_id: userId,
+        topic: {
+          chapter: { subject_id: subjectId },
+        },
+      },
+      orderBy: { created_at: "desc" },
+      include: {
+        topic: {
+          include: {
+            chapter: true,
+          },
+        },
+      },
+    });
+
+    return res.json({
+      reports: reports.map((r) => ({
+        id: r.id,
+        topic_id: r.topic_id,
+        topic_title: r.topic?.title || "Unknown",
+        chapter_title: r.topic?.chapter?.title || "Unknown",
+        total_questions: r.total_questions,
+        correct_answers: r.correct_answers,
+        incorrect_answers: r.incorrect_answers,
+        score_percent: r.score_percent,
+        star_rating: r.star_rating,
+        performance_level: r.performance_level,
+        top_error_types: r.top_error_types,
+        weak_goals: r.weak_goals,
+        time_spent_seconds: r.time_spent_seconds,
+        created_at: r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error("Reports by subject error:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+/**
+ * GET /api/profile/reports/recent
+ * [B5] Get the most recent topic reports across all subjects.
+ */
+router.get("/reports/recent", async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    const reports = await prisma.userTopicReport.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: "desc" },
+      take: limit,
+      include: {
+        topic: {
+          include: {
+            chapter: {
+              include: { subject: true },
+            },
+          },
+        },
+      },
+    });
+
+    return res.json({
+      reports: reports.map((r) => ({
+        id: r.id,
+        topic_id: r.topic_id,
+        topic_title: r.topic?.title || "Unknown",
+        chapter_title: r.topic?.chapter?.title || "Unknown",
+        subject_name: r.topic?.chapter?.subject?.name || "Unknown",
+        total_questions: r.total_questions,
+        correct_answers: r.correct_answers,
+        incorrect_answers: r.incorrect_answers,
+        score_percent: r.score_percent,
+        star_rating: r.star_rating,
+        performance_level: r.performance_level,
+        top_error_types: r.top_error_types,
+        weak_goals: r.weak_goals,
+        time_spent_seconds: r.time_spent_seconds,
+        created_at: r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error("Recent reports error:", err);
+    return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 module.exports = router;

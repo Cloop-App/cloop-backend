@@ -29,10 +29,17 @@ router.get("/", async (req, res) => {
 /**
  * POST /api/notifications/:id/read
  * Mark a notification as read.
+ * Verifies the notification belongs to the authenticated user.
  */
 router.post("/:id/read", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const userId = req.user.user_id;
+
+    const notification = await prisma.notification.findUnique({ where: { id } });
+    if (!notification || notification.user_id !== userId) {
+      return res.status(404).json({ error: "Notification not found." });
+    }
 
     await prisma.notification.update({
       where: { id },
@@ -68,10 +75,17 @@ router.get("/unread-count", async (req, res) => {
 /**
  * DELETE /api/notifications/:id
  * Delete a notification.
+ * Verifies the notification belongs to the authenticated user.
  */
 router.delete("/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+    const userId = req.user.user_id;
+
+    const notification = await prisma.notification.findUnique({ where: { id } });
+    if (!notification || notification.user_id !== userId) {
+      return res.status(404).json({ error: "Notification not found." });
+    }
 
     await prisma.notification.delete({ where: { id } });
 

@@ -21,11 +21,27 @@ async function createNotification(userId, title, body, type = "info") {
 /**
  * Send welcome-back notifications on login.
  * Fires asynchronously — caller does not await.
+ * [Blocker #10] FIX: Added cooldown — skips if a welcome notification was sent
+ * within the last 6 hours to prevent spam on repeated logins.
  * @param {string} userId
  * @param {string} userName
  */
 async function sendLoginNotifications(userId, userName) {
   try {
+    // Check for recent welcome notification (6-hour cooldown)
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const recentWelcome = await prisma.notification.findFirst({
+      where: {
+        user_id: userId,
+        type: "welcome",
+        created_at: { gte: sixHoursAgo },
+      },
+    });
+
+    if (recentWelcome) {
+      return; // Skip — already notified recently
+    }
+
     await createNotification(
       userId,
       "Welcome back!",

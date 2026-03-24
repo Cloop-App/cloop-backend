@@ -53,9 +53,14 @@ router.post("/", async (req, res) => {
  * GET /api/login/users/:id
  * Get user details by ID.
  * [B2] FIX: Added authenticateToken — was previously unprotected.
+ * Users can only access their own data.
  */
 router.get("/users/:id", authenticateToken, async (req, res) => {
   try {
+    if (req.params.id !== req.user.user_id) {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
     const user = await prisma.user.findUnique({
       where: { user_id: req.params.id },
       include: {
@@ -80,9 +85,14 @@ router.get("/users/:id", authenticateToken, async (req, res) => {
  * PUT /api/login/users/:id
  * Update user details.
  * [B2] FIX: Added authenticateToken — was previously unprotected.
+ * Users can only update their own data.
  */
 router.put("/users/:id", authenticateToken, async (req, res) => {
   try {
+    if (req.params.id !== req.user.user_id) {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
     const { name, grade_level_id, board_id, subjects, language_id, study_goal, phone } =
       req.body;
 
@@ -119,9 +129,14 @@ router.put("/users/:id", authenticateToken, async (req, res) => {
  * DELETE /api/login/users/:id
  * Delete a user account.
  * [B2] FIX: Added authenticateToken — was previously unprotected.
+ * Users can only delete their own account.
  */
 router.delete("/users/:id", authenticateToken, async (req, res) => {
   try {
+    if (req.params.id !== req.user.user_id) {
+      return res.status(403).json({ error: "Access denied." });
+    }
+
     await prisma.user.delete({ where: { user_id: req.params.id } });
     return res.json({ ok: true });
   } catch (err) {

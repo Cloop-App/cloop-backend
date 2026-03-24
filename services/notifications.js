@@ -1,0 +1,78 @@
+const prisma = require("../lib/prisma");
+
+/**
+ * Create an in-app notification for a user.
+ * @param {string} userId
+ * @param {string} title
+ * @param {string} body
+ * @param {string} [type='info'] - 'info' | 'welcome' | 'profile' | 'achievement'
+ */
+async function createNotification(userId, title, body, type = "info") {
+  return prisma.notification.create({
+    data: {
+      user_id: userId,
+      title,
+      body,
+      type,
+    },
+  });
+}
+
+/**
+ * Send welcome-back notifications on login.
+ * Fires asynchronously — caller does not await.
+ * @param {string} userId
+ * @param {string} userName
+ */
+async function sendLoginNotifications(userId, userName) {
+  try {
+    await createNotification(
+      userId,
+      "Welcome back!",
+      `Great to see you again, ${userName}! Ready to continue learning?`,
+      "welcome"
+    );
+
+    await createNotification(
+      userId,
+      "Your Profile",
+      "Check your profile to track your progress and manage your subjects.",
+      "profile"
+    );
+  } catch (err) {
+    console.error("Failed to send login notifications:", err.message);
+  }
+}
+
+/**
+ * Expo Push Notification sender.
+ * NOTE: This is mobile-only. Web clients should skip the push-token registration.
+ * For web, in-app notifications (stored in DB) are sufficient.
+ */
+async function sendPushNotification(expoPushToken, title, body) {
+  // Only attempt if expo-server-sdk is available and token is provided
+  if (!expoPushToken) return;
+
+  try {
+    const { Expo } = require("expo-server-sdk");
+    const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
+
+    if (!Expo.isExpoPushToken(expoPushToken)) {
+      console.warn("Invalid Expo push token:", expoPushToken);
+      return;
+    }
+
+    await expo.sendPushNotificationsAsync([
+      {
+        to: expoPushToken,
+        sound: "default",
+        title,
+        body,
+      },
+    ]);
+  } catch (err) {
+    console.error("Push notification failed:", err.message);
+  }
+}
+
+module.exports = { createNotification, sendLoginNotifications, sendPushNotification };

@@ -1,0 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────
+
+model User {
+  user_id             String              @id @default(uuid())
+  name                String
+  email               String              @unique
+  phone               String?
+  grade_level_id      Int?
+  board_id            Int?
+  preferred_language  String?
+  study_goal          String?
+  avatar_choice       String?
+  avatar_url          String?
+  chat_count          Int                 @default(0)
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+
+  grade_level         GradeLevel?         @relation(fields: [grade_level_id], references: [id])
+  board               Board?              @relation(fields: [board_id], references: [id])
+  user_subjects       UserSubject[]
+  topic_chats         TopicChat[]
+  normal_chats        NormalChat[]
+  saved_topics        SavedTopic[]
+  notifications       Notification[]
+  content_jobs        ContentGenerationJob[]
+  user_topic_reports  UserTopicReport[]
+
+  @@map("users")
+}
+
+model GradeLevel {
+  id    Int     @id @default(autoincrement())
+  name  String
+  users User[]
+
+  @@map("grade_levels")
+}
+
+model Board {
+  id    Int     @id @default(autoincrement())
+  name  String
+  users User[]
+
+  @@map("boards")
+}
+
+model Language {
+  id    Int     @id @default(autoincrement())
+  name  String
+  code  String  @unique
+
+  @@map("languages")
+}
+
+// ─── Subjects & Curriculum ───────────────────────────────────────
+
+model Subject {
+  id              Int              @id @default(autoincrement())
+  name            String
+  icon            String?
+  user_subjects   UserSubject[]
+  chapters        Chapter[]
+  content_jobs    ContentGenerationJob[]
+
+  @@map("subjects")
+}
+
+model UserSubject {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  subject_id  Int
+  created_at  DateTime @default(now())
+
+  user    User    @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  subject Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, subject_id])
+  @@map("user_subjects")
+}
+
+model Chapter {
+  id          Int      @id @default(autoincrement())
+  title       String
+  subject_id  Int
+  order       Int      @default(0)
+  created_at  DateTime @default(now())
+
+  subject Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  topics  Topic[]
+
+  @@map("chapters")
+}
+
+model Topic {
+  id                  Int      @id @default(autoincrement())
+  title               String
+  content             String?  @db.Text
+  chapter_id          Int
+  order               Int      @default(0)
+  created_at          DateTime @default(now())
+
+  chapter             Chapter           @relation(fields: [chapter_id], references: [id], onDelete: Cascade)
+  topic_chats         TopicChat[]
+  goals               TopicGoal[]
+  saved_topics        SavedTopic[]
+  user_topic_reports  UserTopicReport[]
+
+  @@map("topics")
+}
+
+model TopicGoal {
+  id          Int      @id @default(autoincrement())
+  topic_id    Int
+  title       String
+  description String?
+  order       Int      @default(0)
+
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+
+  @@map("topic_goals")
+}
+
+// ─── Chat ────────────────────────────────────────────────────────
+
+model TopicChat {
+  id                    Int       @id @default(autoincrement())
+  topic_id              Int
+  user_id               String
+  sender                String    // 'user' | 'ai'
+  message               String    @db.Text
+  message_type          String    @default("text") // 'text' | 'user_correction' | 'session_summary' | 'options'
+  feedback_is_correct   Boolean?
+  feedback_bubble_color String?
+  diff_html             String?   @db.Text
+  options               String[]  // e.g. ["Got it", "Confused"]
+  session_time_seconds  Int?
+  is_completed          Boolean   @default(false)
+  completion_percent    Float     @default(0)
+  created_at            DateTime  @default(now())
+
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([topic_id, user_id])
+  @@map("topic_chats")
+}
+
+model NormalChat {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  sender      String   // 'user' | 'ai'
+  message     String   @db.Text
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("normal_chats")
+}
+
+// ─── Saved Topics ────────────────────────────────────────────────
+
+model SavedTopic {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  topic_id    Int
+  created_at  DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, topic_id])
+  @@map("saved_topics")
+}
+
+// ─── Content Generation ──────────────────────────────────────────
+
+model ContentGenerationJob {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  subject_id  Int
+  status      String   @default("pending") // 'pending' | 'processing' | 'completed' | 'failed'
+  error       String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  user    User    @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  subject Subject @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, subject_id])
+  @@map("content_generation_jobs")
+}
+
+// ─── Notifications ───────────────────────────────────────────────
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  user_id     String
+  title       String
+  body        String   @db.Text
+  type        String   @default("info") // 'info' | 'welcome' | 'profile' | 'achievement'
+  is_read     Boolean  @default(false)
+  created_at  DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@map("notifications")
+}
+
+// ─── Reports ─────────────────────────────────────────────────────
+
+model UserTopicReport {
+  id                  Int      @id @default(autoincrement())
+  user_id             String
+  topic_id            Int
+  total_questions     Int      @default(0)
+  correct_answers     Int      @default(0)
+  incorrect_answers   Int      @default(0)
+  score_percent       Float    @default(0)
+  star_rating         Int      @default(0)
+  performance_level   String?
+  top_error_types     String[] // array of error type strings
+  weak_goals          String[] // array of goal descriptions
+  time_spent_seconds  Int      @default(0)
+  created_at          DateTime @default(now())
+
+  user  User  @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  topic Topic @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("user_topic_reports")
+}

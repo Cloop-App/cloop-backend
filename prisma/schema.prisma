@@ -142,6 +142,10 @@ model TopicChat {
   feedback_bubble_color String?
   diff_html             String?   @db.Text
   options               String[]  // e.g. ["Got it", "Confused"]
+  // Rich per-turn payload: evaluation, diagrams, video/image suggestions,
+  // score predictions, and the reconstruction metadata used by the tutoring
+  // state machine (see services/session_state.js).
+  metadata              Json?
   session_time_seconds  Int?
   is_completed          Boolean   @default(false)
   completion_percent    Float     @default(0)
@@ -231,6 +235,7 @@ model UserTopicReport {
   performance_level   String?
   top_error_types     String[] // array of error type strings
   weak_goals          String[] // array of goal descriptions
+  goal_scores         Json?    // per-goal predicted scores [{goal_id,goal_title,predicted_score}]
   time_spent_seconds  Int      @default(0)
   created_at          DateTime @default(now())
 

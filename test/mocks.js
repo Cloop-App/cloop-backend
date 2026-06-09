@@ -67,6 +67,11 @@ function makeMockTutor() {
         title: "Watch: Sustainable Development",
         trigger: "teaching",
       },
+      internet_link: {
+        search_query: "sustainable development class 8 notes",
+        title: "Further reading: Sustainable Development",
+        trigger: "extension",
+      },
     };
     return Promise.resolve(JSON.stringify(payload));
   };

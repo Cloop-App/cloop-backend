@@ -135,18 +135,29 @@ function normalizeTurn(raw, step, askedQuestions) {
     technique: step.technique || raw?.technique || null,
   };
 
-  // Visual aids are only allowed when the step permits them.
-  if (step.allowMedia) {
-    const mermaid = cleanDiagram(raw?.mermaid_diagram, "mermaid");
-    const textd = cleanDiagram(raw?.text_diagram, "text");
-    // At most one diagram — prefer mermaid if both somehow present.
-    if (mermaid) result.mermaid_diagram = mermaid;
-    else if (textd) result.text_diagram = textd;
+  // Visual aids are only allowed when the step permits them: during a confusion
+  // moment (step.allowMedia) or at session completion (step.extension).
+  if (step.allowMedia || step.extension) {
+    // Diagrams help while teaching a confused student, not as end-of-session
+    // enrichment, so they're suppressed on the extension turn.
+    if (!step.extension) {
+      const mermaid = cleanDiagram(raw?.mermaid_diagram, "mermaid");
+      const textd = cleanDiagram(raw?.text_diagram, "text");
+      // At most one diagram — prefer mermaid if both somehow present.
+      if (mermaid) result.mermaid_diagram = mermaid;
+      else if (textd) result.text_diagram = textd;
+    }
 
     const yt = cleanMediaQuery(raw?.youtube_video);
     const img = cleanMediaQuery(raw?.google_image);
     if (yt) result.youtube_video = resolveMedia.youtube(yt);
     if (img) result.google_image = resolveMedia.image(img);
+
+    // Further-reading internet link — only offered at session completion.
+    if (step.extension) {
+      const link = cleanMediaQuery(raw?.internet_link);
+      if (link) result.internet_link = resolveMedia.web(link);
+    }
   }
 
   // Final safety: avoid repeating an already-asked question verbatim.

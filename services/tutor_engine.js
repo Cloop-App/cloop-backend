@@ -185,6 +185,13 @@ async function runTutorTurn(args, deps = {}) {
       metadata: { kind: "google_image", ...turn.google_image },
     });
   }
+  if (turn.internet_link) {
+    aiRows.push({
+      message: turn.internet_link.title || "Further reading",
+      message_type: "internet_link",
+      metadata: { kind: "internet_link", ...turn.internet_link },
+    });
+  }
 
   const turnMetadata = {
     kind: "turn",
@@ -219,6 +226,7 @@ async function runTutorTurn(args, deps = {}) {
   if (turn.text_diagram) response.text_diagram = turn.text_diagram;
   if (turn.youtube_video) response.youtube_video = turn.youtube_video;
   if (turn.google_image) response.google_image = turn.google_image;
+  if (turn.internet_link) response.internet_link = turn.internet_link;
   if (step.scorePrediction) response.score_prediction = step.scorePrediction;
 
   return {

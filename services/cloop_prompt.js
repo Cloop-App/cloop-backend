@@ -174,16 +174,27 @@ The question text goes in "next_question" AND as the final bubble of "messages".
     nextActionBlock = `NEXT ACTION: ${step.action}`;
   }
 
-  // Media guidance — proactive, but suppressed when it would be noise.
-  const mediaBlock = step.allowMedia
-    ? `VISUAL AIDS (attach proactively, WITHOUT being asked, when it genuinely helps understanding):
-- Use them when the answer was wrong/unclear (trigger "correction") or when explaining a hard process (trigger "teaching").
-- Pick at most ONE diagram (mermaid_diagram OR text_diagram) AND optionally one youtube_video and/or one google_image.
-- mermaid_diagram.code: valid Mermaid (e.g. "graph TD\\n  A[Energy] --> B[Renewable]\\n  A --> C[Non-Renewable]"). Quote labels with parentheses: A["Label (x)"].
-- text_diagram.diagram_type: "tree" | "arrow" | "table" | "ascii".
-- youtube_video / google_image: give a precise "search_query" and a short "title".
-- Omit any field you are not using. Do NOT attach media to a correct answer unless it deepens a hard concept.`
-    : `VISUAL AIDS: This is an exam-phase / closing turn. Do NOT attach any diagram, video, or image. Omit those fields entirely.`;
+  // Media guidance. Media is PROACTIVE and TEACHER-DRIVEN: the student never has
+  // to ask for it. It appears in exactly two situations — when the student is
+  // confused (to teach), and at the end of the session (further learning) —
+  // and is suppressed everywhere else (openers, correct answers, the exam).
+  const mediaRules = `RULES FOR ANY VISUAL/LINK YOU ATTACH:
+- You DO share visuals and links. The app renders a "Related Image" / "Related Video" / "Related Link" card right below your message. NEVER say you "can't share" images/videos/links, and NEVER tell the student to ask for one — you decide and provide it.
+- Diagrams: pick at most ONE (mermaid_diagram OR text_diagram). mermaid_diagram.code must be valid Mermaid (e.g. "graph TD\\n  A[Energy] --> B[Renewable]"); quote labels with parentheses: A["Label (x)"]. text_diagram.diagram_type: "tree" | "arrow" | "table" | "ascii".
+- youtube_video / google_image / internet_link: give a precise "search_query" (and a short "title"). Omit any field you are not using.`;
+
+  let mediaBlock;
+  if (step.extension) {
+    mediaBlock = `VISUAL AIDS — SESSION COMPLETE (further learning):
+The session is finished. Proactively recommend OPTIONAL enrichment for "${topicTitle}" so the student can keep learning: attach ONE youtube_video (a good explainer for this topic / the weaker goals) AND ONE internet_link (notes or an article for further reading). A google_image is optional. Use trigger "extension". Introduce them warmly in one line, e.g. "If you'd like to explore more, here are a couple of resources 👇".
+${mediaRules}`;
+  } else if (step.allowMedia) {
+    mediaBlock = `VISUAL AIDS — STUDENT IS CONFUSED (teach with a visual):
+The student got this wrong or is unclear, so proactively (without being asked) attach ONE helpful visual to make the idea click: a diagram, and/or a short explainer youtube_video, and/or a google_image. Use trigger "correction" (fixing a wrong answer) or "teaching" (explaining a hard idea).
+${mediaRules}`;
+  } else {
+    mediaBlock = `VISUAL AIDS: Not now — this is an opener / correct answer / exam turn. Do NOT attach any diagram, video, image, or link. Omit all of those fields entirely.`;
+  }
 
   const feedbackHint = !grade || grade.is_correct === null
     ? `This is the FIRST question of the session. Give one short, warm one-line welcome, then ask the question. There is no previous answer to react to.`
@@ -240,8 +251,9 @@ Return ONLY this JSON (no prose, no code fences). Omit any media field you are n
   "technique": "string | null",
   "mermaid_diagram":  { "title": "string", "code": "string", "trigger": "correction|teaching|user_request" },
   "text_diagram":     { "title": "string", "code": "string", "diagram_type": "tree|arrow|table|ascii", "trigger": "correction|teaching|user_request" },
-  "youtube_video":    { "search_query": "string", "title": "string", "trigger": "correction|teaching|user_request" },
-  "google_image":     { "search_query": "string", "title": "string", "trigger": "correction|teaching|user_request" }
+  "youtube_video":    { "search_query": "string", "title": "string", "trigger": "correction|teaching|extension" },
+  "google_image":     { "search_query": "string", "title": "string", "trigger": "correction|teaching|extension" },
+  "internet_link":    { "search_query": "string", "title": "string", "trigger": "extension" }
 }`;
 }
 

@@ -51,6 +51,30 @@ function image(spec) {
   };
 }
 
+/** Deterministic Google web search URL (no API key required). */
+function googleWebSearchUrl(query) {
+  return `https://www.google.com/search?q=${enc(query)}`;
+}
+
+/**
+ * Resolve a "further reading" internet link. If the spec carries an explicit
+ * http(s) URL, pass it through; otherwise build a Google web-search URL from the
+ * search_query so the link always opens to relevant material.
+ * @param {{search_query?:string, url?:string, title?:string, trigger?:string}} spec
+ */
+function web(spec) {
+  const explicit =
+    typeof spec.url === "string" && /^https?:\/\//i.test(spec.url) ? spec.url : null;
+  const query = spec.search_query || spec.title || "";
+  return {
+    type: "internet_link",
+    title: spec.title || "Further reading",
+    search_query: spec.search_query || null,
+    trigger: spec.trigger || "extension",
+    url: explicit || googleWebSearchUrl(query),
+  };
+}
+
 /**
  * Optional: resolve a specific top YouTube video via the Data API if a key is
  * present. Falls back to the deterministic search URL on any error.
@@ -87,9 +111,11 @@ async function youtubeTopResult(spec) {
 const resolveMedia = {
   youtube,
   image,
+  web,
   youtubeTopResult,
   youtubeSearchUrl,
   googleImageSearchUrl,
+  googleWebSearchUrl,
 };
 
 module.exports = { resolveMedia };

@@ -50,8 +50,16 @@ student answer
   Stage 2, with a normalisation backstop.
 - **Mastery flow.** Concept questions repeat until clarity ≥ 0.80 (cap 3), then
   2–3 exam questions, then `predicted_score = concept*50 + exam*50`.
-- **Proactive media, gated.** Diagrams/videos/images appear during teaching and
-  corrections, and are stripped during the exam phase.
+- **Proactive, teacher-driven media.** The student never asks for visuals. Media
+  appears in exactly two situations and is stripped everywhere else (openers,
+  correct answers, the exam phase, goal hops):
+  - **Confusion** (a wrong/unclear answer → a `recheck_understanding` turn): a
+    teaching diagram and/or short explainer video/image to make the idea click.
+  - **Session complete:** optional *further-learning* resources — a YouTube
+    video plus an `internet_link` (notes/article) for the topic and weak goals.
+    No diagram at the wrap-up.
+  The tutor prompt forbids "I can't share…" phrasing and forbids telling the
+  student to ask — the tutor decides and provides.
 
 ## Files
 

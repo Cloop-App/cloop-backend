@@ -63,7 +63,7 @@ async function simulate() {
 }
 
 const hasMedia = (r) =>
-  !!(r.mermaid_diagram || r.text_diagram || r.youtube_video || r.google_image);
+  !!(r.mermaid_diagram || r.text_diagram || r.youtube_video || r.google_image || r.internet_link);
 
 const lastBubble = (r) => r.messages[r.messages.length - 1].message;
 
@@ -113,19 +113,37 @@ test("understanding status reflects answer quality", async () => {
   assert.equal(turns[6].response.evaluation.understanding_status, "UNCLEAR");
 });
 
-test("visual aids appear while teaching but never during the exam phase", async () => {
+test("media is proactive: only when the student is confused or the session is done", async () => {
   const turns = await simulate();
   for (const t of turns) {
     const step = t.response.evaluation.next_step_type;
-    const examRender =
-      step === "ask_exam_question" || step === "continue_exam_question";
-    const expectMedia = !t.sessionComplete && !examRender;
+    // Policy: teaching media on a confusion recheck; further-learning media at
+    // completion; nothing on openers, correct answers, exam turns, or goal hops.
+    const expectMedia = t.sessionComplete || step === "recheck_understanding";
     assert.equal(
       hasMedia(t.response),
       expectMedia,
-      `media gating wrong for step "${step}" (turn): expected ${expectMedia}`
+      `media gating wrong for step "${step}" (sessionComplete=${t.sessionComplete}): expected ${expectMedia}`
     );
   }
+});
+
+test("a confusion turn teaches with a diagram, never an internet link", async () => {
+  const turns = await simulate();
+  const confused = turns[1].response; // wrong concept answer -> recheck
+  assert.equal(confused.evaluation.next_step_type, "recheck_understanding");
+  assert.ok(confused.mermaid_diagram, "confusion turn should teach with a diagram");
+  assert.equal(confused.internet_link, undefined, "no further-reading link mid-lesson");
+});
+
+test("session completion shares further-learning video + link, but no diagram", async () => {
+  const turns = await simulate();
+  const done = turns[10].response;
+  assert.equal(turns[10].sessionComplete, true);
+  assert.ok(done.youtube_video, "completion should offer a video for further learning");
+  assert.ok(done.internet_link, "completion should offer an internet link");
+  assert.ok(done.internet_link.url.startsWith("https://www.google.com/search?q="));
+  assert.equal(done.mermaid_diagram, undefined, "no teaching diagram at the wrap-up");
 });
 
 test("concept_clarity_score is present for concept grades and null for exam grades", async () => {

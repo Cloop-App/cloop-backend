@@ -217,7 +217,8 @@ function applyTransition(state, grade) {
         understanding,
         gradedPhase,
         grade,
-        allowMedia: true, // teaching aids welcome while concept is shaky
+        // The student is struggling — proactively offer a visual aid to teach.
+        allowMedia: true,
       });
     }
     // Concept is done — move to the exam phase.
@@ -275,7 +276,9 @@ function applyTransition(state, grade) {
       nextStepType: "predict_score",
       understanding: "N/A",
       technique: null,
-      allowMedia: false,
+      // Session is over — share optional "further learning" media + links.
+      allowMedia: true,
+      extension: true,
       scorePrediction,
       sessionComplete: true,
     };
@@ -296,7 +299,8 @@ function applyTransition(state, grade) {
     nextStepType: "predict_score", // this turn both predicts AND opens the next goal
     understanding: "N/A",
     technique,
-    allowMedia: true,
+    // Not a confusion moment and not the end — keep this transition clean.
+    allowMedia: false,
     scorePrediction,
     sessionComplete: false,
   };
@@ -346,7 +350,8 @@ function firstStep(state) {
     nextStepType: "ask_concept_question",
     understanding: "N/A",
     technique,
-    allowMedia: true,
+    // A plain opening question — no media until the student is confused or done.
+    allowMedia: false,
     scorePrediction: null,
     sessionComplete: false,
   };

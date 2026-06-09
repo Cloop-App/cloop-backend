@@ -126,6 +126,40 @@ test("resolveMedia builds deterministic, working search URLs without an API key"
   assert.equal(yt.url, "https://www.youtube.com/results?search_query=photosynthesis%20for%20kids");
   assert.equal(img.url, "https://www.google.com/search?tbm=isch&q=photosynthesis%20diagram");
 });
+test("resolveMedia.web builds a search link, or passes through an explicit URL", () => {
+  const fromQuery = resolveMedia.web({ search_query: "friction notes class 8" });
+  assert.equal(fromQuery.url, "https://www.google.com/search?q=friction%20notes%20class%208");
+  const explicit = resolveMedia.web({ search_query: "x", url: "https://ncert.nic.in/page" });
+  assert.equal(explicit.url, "https://ncert.nic.in/page");
+});
+
+// ── media policy: confusion vs completion ──
+test("normalizeTurn at session completion offers a video + link but no diagram", () => {
+  const step = { action: "session_complete", nextPhase: "exam", nextGoalTitle: "X", extension: true, sessionComplete: true };
+  const raw = {
+    messages: [{ message: "Great work this session!" }],
+    next_question: null,
+    mermaid_diagram: { code: "graph TD\n A-->B", title: "t" },
+    youtube_video: { search_query: "topic deep dive", title: "More" },
+    internet_link: { search_query: "topic notes", title: "Read more" },
+  };
+  const turn = normalizeTurn(raw, step, []);
+  assert.equal(turn.mermaid_diagram, undefined, "no diagram in the wrap-up");
+  assert.ok(turn.youtube_video, "video offered for further learning");
+  assert.ok(turn.internet_link, "internet link offered for further learning");
+});
+test("normalizeTurn never attaches an internet link mid-lesson (confusion turn)", () => {
+  const step = { action: "ask_question", nextPhase: "concept", nextGoalTitle: "X", allowMedia: true, technique: "Contrast" };
+  const raw = {
+    messages: [{ message: "Not quite." }],
+    next_question: "Why is coal non-renewable?",
+    internet_link: { search_query: "coal notes", title: "Read" },
+    mermaid_diagram: { code: "graph TD\n A-->B", title: "t" },
+  };
+  const turn = normalizeTurn(raw, step, []);
+  assert.equal(turn.internet_link, undefined, "links are for completion only");
+  assert.ok(turn.mermaid_diagram, "a diagram is fine while teaching");
+});
 
 // ── rating ──
 test("ratingFor maps percentages to sensible stars/labels", () => {

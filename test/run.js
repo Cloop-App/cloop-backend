@@ -5,6 +5,7 @@
  *   node test/run.js
  */
 require("./unit");
+require("./grader_cases");
 require("./tutor_simulation");
 const { run } = require("./harness");
 

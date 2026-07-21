@@ -61,6 +61,7 @@ async function generateTutorTurn(args, llm = chatCompletion) {
     askedQuestions = [],
     studentName,
     language,
+    model,
   } = args;
 
   const system = buildTutorSystemPrompt({
@@ -75,9 +76,11 @@ async function generateTutorTurn(args, llm = chatCompletion) {
 
   let raw = null;
   try {
+    const opts = { jsonMode: true, temperature: 0.4 };
+    if (model) opts.model = model; // tiered model chosen by model_router
     const out = await llm(
       [{ role: "system", content: system }, { role: "user", content: "Render the turn now." }],
-      { jsonMode: true, temperature: 0.4 }
+      opts
     );
     raw = safeJsonParse(out, null);
   } catch (err) {

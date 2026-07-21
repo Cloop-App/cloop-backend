@@ -7,6 +7,7 @@
 require("./unit");
 require("./grader_cases");
 require("./tutor_simulation");
+require("./cost_optim");
 const { run } = require("./harness");
 
 run().then((ok) => {

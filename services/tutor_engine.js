@@ -17,6 +17,7 @@
 const { gradeAnswer } = require("./answer_grader");
 const { generateTutorTurn } = require("./tutor_turn");
 const { reconstructState, applyTransition, firstStep } = require("./session_state");
+const { routeGrader, routeTutor } = require("./model_router");
 
 const GRADE_BAND = "Grades 6-10 (CBSE / ICSE / State board)";
 
@@ -74,6 +75,8 @@ async function runTutorTurn(args, deps = {}) {
         topic,
         goal: goals[state.goalIndex],
         gradeBand: GRADE_BAND,
+        cache: deps.cache || null, // correction cache (optional)
+        model: routeGrader({ phase: state.phase }), // tiered model
       },
       deps.grade
     );
@@ -88,6 +91,7 @@ async function runTutorTurn(args, deps = {}) {
       askedQuestions: state.askedQuestions,
       studentName: studentName || "Student",
       language: language || null,
+      model: routeTutor(step, grade), // cheap for routine, better for teaching
     },
     deps.tutor
   );

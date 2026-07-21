@@ -130,11 +130,21 @@ function normalizeGrade(raw, answer) {
  * @returns {Promise<object>} normalized grade
  */
 async function gradeAnswer(args, llm = chatCompletion) {
-  const { answer, question, phase, topic, goal, gradeBand } = args;
+  const { answer, question, phase, topic, goal, gradeBand, cache, model } = args;
 
   // Fast-path no-attempts without spending an LLM call.
   if (looksLikeNoAttempt(answer)) {
     return normalizeGrade({ is_no_attempt: true }, answer);
+  }
+
+  // Cache hit: a previously-graded identical (topic, question, answer) — skip
+  // the LLM entirely. This is where repeated common errors stop costing money.
+  const cacheParams = cache
+    ? { topicId: topic.id ?? topic.title, question, answer }
+    : null;
+  if (cache) {
+    const hit = await cache.get(cacheParams);
+    if (hit) return { ...hit, _cached: true };
   }
 
   const system = buildGraderSystemPrompt({
@@ -154,7 +164,9 @@ async function gradeAnswer(args, llm = chatCompletion) {
 
   let raw = null;
   try {
-    const out = await llm(messages, { jsonMode: true, temperature: 0 });
+    const opts = { jsonMode: true, temperature: 0 };
+    if (model) opts.model = model; // tiered model chosen by model_router
+    const out = await llm(messages, opts);
     raw = safeJsonParse(out, null);
   } catch (err) {
     // On any grader failure, fall back to a neutral partial grade so the
@@ -164,6 +176,7 @@ async function gradeAnswer(args, llm = chatCompletion) {
   }
 
   if (!raw) {
+    // _fallback marks this so the cache never stores a transient failure.
     return {
       is_no_attempt: false,
       is_correct: false,
@@ -176,10 +189,13 @@ async function gradeAnswer(args, llm = chatCompletion) {
       misconception_guess: null,
       diff_html: null,
       complete_answer: "",
+      _fallback: true,
     };
   }
 
-  return normalizeGrade(raw, answer);
+  const grade = normalizeGrade(raw, answer);
+  if (cache) await cache.set(cacheParams, grade);
+  return grade;
 }
 
 module.exports = { gradeAnswer, normalizeGrade, looksLikeNoAttempt };

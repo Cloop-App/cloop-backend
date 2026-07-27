@@ -16,7 +16,13 @@
 
 const { gradeAnswer } = require("./answer_grader");
 const { generateTutorTurn } = require("./tutor_turn");
-const { reconstructState, applyTransition, firstStep } = require("./session_state");
+const {
+  reconstructState,
+  applyTransition,
+  resolveCheckin,
+  isMoveOn,
+  firstStep,
+} = require("./session_state");
 const { routeGrader, routeTutor } = require("./model_router");
 
 const GRADE_BAND = "Grades 6-10 (CBSE / ICSE / State board)";
@@ -64,7 +70,11 @@ async function runTutorTurn(args, deps = {}) {
   let step;
   const gradedGoalIndex = state.goalIndex;
 
-  if (!state.started || !state.lastQuestion) {
+  if (state.lastTurnWasCheckin) {
+    // The previous turn was a struggle check-in — this message is a CHOICE
+    // ("practice"/"move on"), NOT an academic answer, so we never grade it.
+    step = resolveCheckin(state, isMoveOn(userMessage));
+  } else if (!state.started || !state.lastQuestion) {
     step = firstStep(state);
   } else {
     grade = await gradeAnswer(
@@ -197,14 +207,23 @@ async function runTutorTurn(args, deps = {}) {
     });
   }
 
+  // On a struggle check-in there is no next question — the last bubble is the
+  // choice prompt; record it as the "question" so it is not repeated and so the
+  // next turn knows to treat the reply as a choice.
+  const checkinText =
+    step.checkin && turn.messages.length
+      ? turn.messages[turn.messages.length - 1].message
+      : null;
+
   const turnMetadata = {
     kind: "turn",
-    question: questionText || null,
+    question: questionText || checkinText || null,
     phase: step.nextPhase,
     goalIndex: step.goalIndex,
     technique: step.technique || null,
     grade: gradeForPersist,
   };
+  if (step.checkin) turnMetadata.checkin = true;
 
   if (questionBubble) {
     aiRows.push({
@@ -213,7 +232,7 @@ async function runTutorTurn(args, deps = {}) {
       metadata: turnMetadata,
     });
   } else if (aiRows.length) {
-    // Session-complete turn: stamp reconstruction metadata on the last row.
+    // Session-complete or check-in turn: stamp metadata on the last row.
     aiRows[aiRows.length - 1].metadata = {
       ...(aiRows[aiRows.length - 1].metadata || {}),
       ...turnMetadata,
@@ -231,6 +250,7 @@ async function runTutorTurn(args, deps = {}) {
   if (turn.youtube_video) response.youtube_video = turn.youtube_video;
   if (turn.google_image) response.google_image = turn.google_image;
   if (turn.internet_link) response.internet_link = turn.internet_link;
+  if (step.checkin && step.options) response.options = step.options;
   if (step.scorePrediction) response.score_prediction = step.scorePrediction;
 
   return {

@@ -21,6 +21,7 @@
 // Tunables for the learning flow (kept here so they're easy to audit/adjust).
 const CLARITY_CLEAR_THRESHOLD = 0.8; // >= this => concept is CLEAR, move to exam
 const MAX_CONCEPT_QUESTIONS = 3; // safety cap so a struggling student still advances
+const STRUGGLE_LIMIT = 3; // consecutive UNCLEAR answers => offer a check-in
 const MIN_EXAM_QUESTIONS = 2;
 const MAX_EXAM_QUESTIONS = 3;
 
@@ -126,6 +127,17 @@ function reconstructState(history, goals) {
     .map((t) => t.technique)
     .filter(Boolean);
 
+  // Trailing run of consecutive UNCLEAR (clarity < 0.5) concept answers on the
+  // current goal — used to trigger the struggle check-in.
+  const gc = perGoal[goalIndex];
+  let struggleStreak = 0;
+  if (gc) {
+    for (let i = gc.conceptClarity.length - 1; i >= 0; i--) {
+      if (gc.conceptClarity[i] < 0.5) struggleStreak++;
+      else break;
+    }
+  }
+
   return {
     goals,
     goalIndex,
@@ -134,6 +146,10 @@ function reconstructState(history, goals) {
     askedQuestions,
     recentTechniques,
     perGoal,
+    struggleStreak,
+    // True when the previous AI turn was a struggle check-in, so the next
+    // student message is a CHOICE ("practice"/"move on"), not an answer to grade.
+    lastTurnWasCheckin: !!(lastTurn && lastTurn.checkin),
     started: turns.length > 0,
   };
 }
@@ -205,11 +221,44 @@ function applyTransition(state, grade) {
   const examCount = g.examScores.length;
   const latestClarity = clamp01(grade.concept_clarity_score);
 
-  // ── Concept phase: stay until CLEAR or the safety cap is hit. ──
+  // ── Concept phase: stay until CLEAR, check in when stuck, else cap to exam. ──
   if (phase === "concept") {
     const isClear = latestClarity >= CLARITY_CLEAR_THRESHOLD;
-    const capped = conceptCount >= MAX_CONCEPT_QUESTIONS;
-    if (!isClear && !capped) {
+    if (isClear) {
+      return finalizeAskStep(state, {
+        nextPhase: "exam",
+        nextStepType: "ask_exam_question",
+        understanding: "CLEAR",
+        gradedPhase,
+        grade,
+        allowMedia: false,
+      });
+    }
+
+    // Trailing run of UNCLEAR answers (including this one) on this goal.
+    let streak = 0;
+    for (let i = g.conceptClarity.length - 1; i >= 0; i--) {
+      if (g.conceptClarity[i] < 0.5) streak++;
+      else break;
+    }
+
+    // Stuck: after STRUGGLE_LIMIT straight UNCLEAR answers, don't silently jump —
+    // re-teach and offer a choice instead of forcing the next phase.
+    if (streak >= STRUGGLE_LIMIT) {
+      const step = finalizeAskStep(state, {
+        nextPhase: "concept",
+        nextStepType: "struggle_checkin",
+        understanding: "UNCLEAR",
+        gradedPhase,
+        grade,
+        allowMedia: true,
+      });
+      step.checkin = true;
+      step.options = ["Practice a bit more", "Move on"];
+      return step;
+    }
+
+    if (conceptCount < MAX_CONCEPT_QUESTIONS) {
       const understanding = latestClarity < 0.5 ? "UNCLEAR" : "PARTLY_CLEAR";
       return finalizeAskStep(state, {
         nextPhase: "concept",
@@ -217,15 +266,16 @@ function applyTransition(state, grade) {
         understanding,
         gradedPhase,
         grade,
-        // The student is struggling — proactively offer a visual aid to teach.
-        allowMedia: true,
+        allowMedia: true, // student is struggling → teach with a visual
       });
     }
-    // Concept is done — move to the exam phase.
+
+    // Cap reached without a straight-UNCLEAR streak (e.g. repeated PARTLY_CLEAR)
+    // → move on to the exam with current scores.
     return finalizeAskStep(state, {
       nextPhase: "exam",
       nextStepType: "ask_exam_question",
-      understanding: "CLEAR",
+      understanding: "PARTLY_CLEAR",
       gradedPhase,
       grade,
       allowMedia: false,
@@ -357,14 +407,55 @@ function firstStep(state) {
   };
 }
 
+/**
+ * Resolve a student's reply to a struggle check-in. The reply is a CHOICE, not
+ * an academic answer, so it is never graded.
+ *
+ * @param {object} state
+ * @param {boolean} moveOn  true if the student chose to move on
+ * @returns {object} step
+ */
+function resolveCheckin(state, moveOn) {
+  if (moveOn) {
+    // Move on to the exam with the concept scores gathered so far.
+    return finalizeAskStep(state, {
+      nextPhase: "exam",
+      nextStepType: "ask_exam_question",
+      understanding: "N/A",
+      gradedPhase: null,
+      grade: null,
+      allowMedia: false,
+    });
+  }
+  // Keep practising: ask an easier concept question and re-teach.
+  return finalizeAskStep(state, {
+    nextPhase: "concept",
+    nextStepType: "recheck_understanding",
+    understanding: "UNCLEAR",
+    gradedPhase: null,
+    grade: null,
+    allowMedia: true,
+  });
+}
+
+/** Interpret a check-in reply string as "move on" vs "keep practising". */
+function isMoveOn(text) {
+  const t = String(text || "").toLowerCase();
+  if (/\b(practice|practise|more|again|keep|stay|continue practicing)\b/.test(t)) return false;
+  return /\b(move on|move|next|proceed|go ahead|skip|ready|forward|exam|yes)\b/.test(t);
+}
+
 module.exports = {
   reconstructState,
   applyTransition,
+  resolveCheckin,
+  isMoveOn,
   firstStep,
   pickTechnique,
   // exported for tests / tuning
   CLARITY_CLEAR_THRESHOLD,
   MAX_CONCEPT_QUESTIONS,
+  STRUGGLE_LIMIT,
   MIN_EXAM_QUESTIONS,
   MAX_EXAM_QUESTIONS,
   CONCEPT_TECHNIQUES,

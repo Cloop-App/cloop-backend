@@ -150,6 +150,8 @@ function buildTutorSystemPrompt(ctx) {
   let nextActionBlock;
   if (step.action === "session_complete") {
     nextActionBlock = `NEXT ACTION: The session is finished. Give one short, warm closing message summarising effort across the whole topic. Do NOT ask another question. Set "messages" to 1-2 short bubbles and set "next_question" to null.`;
+  } else if (step.checkin) {
+    nextActionBlock = `NEXT ACTION: STRUGGLE CHECK-IN. The student has been unclear on this concept several times. Do NOT ask another quiz question. Give one encouraging line + a very simple re-explanation (with a teaching visual), then offer a gentle CHOICE — practise a bit more, or move on. End "messages" with that choice (a sentence, not a quiz question) and set "next_question" to null. Include "options": ${JSON.stringify(step.options || ["Practice a bit more", "Move on"])}.`;
   } else if (step.action === "ask_question") {
     const phaseRules =
       step.nextPhase === "concept"

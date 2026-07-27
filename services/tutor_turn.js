@@ -114,7 +114,17 @@ function normalizeTurn(raw, step, askedQuestions) {
 
   const sessionComplete = step.action === "session_complete";
 
-  if (!sessionComplete) {
+  if (step.checkin) {
+    // A struggle check-in ends with a CHOICE, not a question. Ensure the last
+    // bubble is the choice prompt (synthesise one if the model omitted it).
+    nextQuestion = null;
+    const prompt =
+      "We've looked at this a few times — would you like to practise a bit more, or move on?";
+    const last = messages[messages.length - 1];
+    if (!last || !/\?\s*$/.test(last.message)) {
+      messages.push({ message: prompt, message_type: "text" });
+    }
+  } else if (!sessionComplete) {
     // Enforce a trailing question. If the model didn't supply one, synthesise a
     // minimal fallback so the auto-continue rule is never violated.
     if (!nextQuestion) {
@@ -137,6 +147,7 @@ function normalizeTurn(raw, step, askedQuestions) {
     next_question: nextQuestion,
     technique: step.technique || raw?.technique || null,
   };
+  if (step.checkin && step.options) result.options = step.options;
 
   // Visual aids are only allowed when the step permits them: during a confusion
   // moment (step.allowMedia) or at session completion (step.extension).

@@ -27,6 +27,9 @@
  * @property {string[]} [weak_situations]  Known situational gaps (phone, group, disagreement…).
  * @property {string[]} [strengths]        Known strengths.
  * @property {string[]} [situation_focus]  Situations Stage 2 should draw practice from.
+ * @property {string[]} [track_preferences] Tracks the learner said they want to focus on,
+ *                                          from the five: Everyday English, Everyday Grammar,
+ *                                          Business English, Business Communication, Interview Prep.
  *
  * @param {object} args
  * @param {string} args.userName
@@ -59,7 +62,7 @@ Goal: understand ${userName} well enough to build a custom path. You are NOT tea
 
 Capture three layers:
 
-1. PROFILE — Open warmly and directly with the goal question, e.g. "What do you most want to be able to do in English?" Then find out their age and what they do (work or study). The goal shapes the whole curriculum, so get it in the learner's own words.
+1. PROFILE — Open warmly and directly with the goal question, e.g. "What do you most want to be able to do in English?" Then find out their age and what they do (work or study). The goal shapes the whole curriculum, so get it in the learner's own words. Also ask, in plain language, WHICH AREAS they'd most like to focus on, offering the five tracks as friendly options (not jargon): everyday conversation (Everyday English), the grammar basics (Everyday Grammar), workplace English like emails and meetings vocabulary (Business English), communicating at work — meetings, presentations, client calls (Business Communication), and job-interview practice (Interview Prep). Let them pick one or several, or say "not sure — you decide". Record their picks in track_preferences. Treat this as a preference signal, not a limit: the diagnostic can still recommend a track they didn't ask for if they clearly need it.
 
 2. FLUENCY LEVEL — Give TWO or THREE prompts of rising demand and read the actual output (not what they claim they can do):
    • Prompt A (easy): a simple self-introduction.
@@ -121,6 +124,7 @@ OUTPUT — respond with a VALID JSON object ONLY, in this exact shape:
     "weak_language": ["past tenses", "articles"],
     "weak_situations": ["phone register", "hesitation under pressure"],
     "situation_focus": ["phone calls", "handling complaints"],
+    "track_preferences": ["Business Communication", "Interview Prep"],
     "recommended_start": null | "stage_2_text_first" | "stage_3_voice_first"
   },
   "diagnostic_progress": null | {
@@ -177,6 +181,7 @@ function renderKnownProfile(profile) {
   if (has(p.weak_language)) lines.push(`- Weak (language): ${p.weak_language.join(", ")}`);
   if (has(p.weak_situations)) lines.push(`- Weak (situations): ${p.weak_situations.join(", ")}`);
   if (has(p.situation_focus)) lines.push(`- Situation focus: ${p.situation_focus.join(", ")}`);
+  if (has(p.track_preferences)) lines.push(`- Preferred tracks: ${p.track_preferences.join(", ")}`);
 
   if (lines.length === 0) {
     return `KNOWN LEARNER PROFILE (so far): none yet — this is a fresh learner. Begin Stage 1 from the top.`;

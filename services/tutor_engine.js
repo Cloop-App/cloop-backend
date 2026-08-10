@@ -24,6 +24,7 @@ const {
   firstStep,
 } = require("./session_state");
 const { routeGrader, routeTutor } = require("./model_router");
+const { buildWordDiff } = require("./correction_builder");
 
 const GRADE_BAND = "Grades 6-10 (CBSE / ICSE / State board)";
 
@@ -123,9 +124,18 @@ async function runTutorTurn(args, deps = {}) {
   // Correction row.
   let userCorrection = null;
   if (grade) {
+    // For a WRONG answer with a known correct term, build the strikethrough
+    // correction deterministically (student's wrong word(s) → correct word(s)),
+    // so it renders cleanly like the app's CORRECTIONS card and never garbles.
+    // For a correct-but-typo'd answer, keep the grader's spelling diff.
+    let diffHtml = grade.diff_html;
+    if (!grade.is_correct && !grade.is_no_attempt && grade.correct_term) {
+      const built = buildWordDiff(userMessage, grade.correct_term);
+      if (built) diffHtml = built;
+    }
     userCorrection = {
       message_type: "user_correction",
-      diff_html: grade.diff_html,
+      diff_html: diffHtml,
       complete_answer: grade.complete_answer,
       emoji: emojiFor(grade),
       feedback: {
@@ -136,11 +146,11 @@ async function runTutorTurn(args, deps = {}) {
       },
     };
     aiRows.push({
-      message: grade.diff_html || grade.complete_answer || "",
+      message: diffHtml || grade.complete_answer || "",
       message_type: "user_correction",
       feedback_is_correct: grade.is_correct,
       feedback_bubble_color: grade.is_correct ? "green" : "red",
-      diff_html: grade.diff_html || null,
+      diff_html: diffHtml || null,
       metadata: { kind: "correction", ...userCorrection },
     });
   }

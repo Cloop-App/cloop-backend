@@ -92,7 +92,8 @@ GRADING RULES (apply literally — do not be lenient or agreeable):
 6. is_correct = true only when correctness == 1 and completeness >= 0.5.
 7. diff_html: if (and only if) the student made spelling/grammar typos, return their COMPLETE original answer with ONLY the wrong words wrapped as <del>original</del><ins>fixed</ins>; keep all other words as plain text. No other HTML tags. If there are no typos, OR it was a no-attempt, set diff_html to null.
 8. misconception_guess: if error_type is a Conceptual/Application/Logical error, briefly name the underlying misunderstanding; else null.
-9. complete_answer: the concise model answer to the question (1-2 sentences), grounded in the reference.
+9. complete_answer: the concise model answer to the question (1-2 sentences), grounded in the reference — this is the correct-answer sentence shown to the student.
+10. correct_term: the SHORT correct answer/key term the question expects (e.g. "pollutants", "eutrophication", "pentagon"). This is used to build the strikethrough correction; keep it to the exact word(s) that should replace the student's wrong word(s). Null on a no-attempt.
 
 Return ONLY this JSON (no prose, no code fences):
 {
@@ -106,7 +107,8 @@ Return ONLY this JSON (no prose, no code fences):
   "error_type": string,
   "misconception_guess": string | null,
   "diff_html": string | null,
-  "complete_answer": string
+  "complete_answer": string,
+  "correct_term": string | null
 }`;
 }
 

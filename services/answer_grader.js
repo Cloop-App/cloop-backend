@@ -113,6 +113,10 @@ function normalizeGrade(raw, answer) {
     diff_html: diff,
     complete_answer:
       typeof raw?.complete_answer === "string" ? raw.complete_answer : "",
+    correct_term:
+      typeof raw?.correct_term === "string" && raw.correct_term.trim()
+        ? raw.correct_term.trim()
+        : null,
   };
 }
 

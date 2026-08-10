@@ -6,6 +6,7 @@
  */
 require("./unit");
 require("./grader_cases");
+require("./correction_builder");
 require("./tutor_simulation");
 require("./struggle_checkin");
 require("./cost_optim");

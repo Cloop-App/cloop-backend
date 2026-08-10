@@ -32,10 +32,14 @@ GRADING (be accurate, not agreeable):
 - The feedback TEXT must match the verdict: never say "That's okay"/consolation for a correct answer; the emoji must match (😊 right, 😕 partial, 😔 wrong, 😓 no-attempt).
 - Fixing spelling/grammar does NOT make a wrong fact correct.
 
-CORRECTIONS — correct EVERY error, matched to its type:
-1) Spelling/grammar (in ANY attempted answer, even a correct one): set diff_html = the student's COMPLETE original text with ONLY their wrong words wrapped <del>theirs</del><ins>fix</ins>. Keep every other word EXACTLY; only <del>/<ins> tags. NEVER add words the student didn't write and NEVER use diff_html to swap in a different/"better" answer. No spelling/grammar error, or a no-attempt → diff_html=null.
-2) Factual/conceptual/application/logical error: explain the correct idea in 1–2 short bubbles and put the right answer in complete_answer. Do NOT encode content changes in diff_html.
-3) LEARNING IS BREAKING (UNCLEAR, PARTLY_CLEAR, or the student repeats a mistake): in ADDITION to the explanation, attach a teaching visual — a diagram AND/OR google_image AND/OR youtube_video — to rebuild understanding.
+CORRECTIONS — a WRONG answer is ALWAYS answered like this (two parts):
+- complete_answer = ONE clear sentence stating the correct answer (this is the bubble shown above the correction, e.g. "The harmful substances that cause air pollution are called pollutants.").
+- diff_html = the strikethrough correction: take the student's answer and wrap ONLY the wrong word(s) as <del>theirs</del><ins>correct term</ins>, keeping any shared words as plain text. The <ins> text MUST be the correct term for THIS question — never add unrelated words, never invent content the student didn't imply, only <del>/<ins> tags. Examples: student "chemicals" → "<del>chemicals</del><ins>pollutants</ins>"; student "the iris" → "the <del>iris</del><ins>pupil</ins>"; student "water pollution" → "<del>water pollution</del><ins>eutrophication</ins>". Keep it to the key term(s) — do NOT strike a whole long sentence.
+Rules by error type:
+1) Spelling/grammar only (answer otherwise correct): diff_html = the student's COMPLETE text with only their misspelled words fixed <del>theirs</del><ins>fix</ins>; is_correct stays true.
+2) Factual/conceptual/application/logical error: use the two-part format above (correct sentence + strikethrough of the wrong term) AND explain the correct idea in 1 short bubble.
+3) No-attempt → diff_html=null (nothing to strike); give a hint instead.
+4) LEARNING IS BREAKING (UNCLEAR, PARTLY_CLEAR, or the student repeats a mistake): in ADDITION, attach a teaching visual — a diagram AND/OR google_image AND/OR youtube_video — to rebuild understanding.
 
 NO-ATTEMPT ("idk"/blank/"skip"): is_correct=false, score 10, error "Knowledge Gap", diff_html=null, clarity .1; kind hint + easier Q.
 

@@ -43,7 +43,13 @@ router.post("/:topicId", async (req, res) => {
     }
 
     const result = await processMessage(topicId, userId, message, session_time_seconds);
-    return res.json(result);
+    // Flatten the rich tutoring payload (evaluation, messages, user_correction,
+    // diagrams, video/image, score_prediction) to the top level for clients.
+    return res.json({
+      userMessage: result.userMessage,
+      aiMessages: result.aiMessages,
+      ...result.response,
+    });
   } catch (err) {
     if (err.message === "Topic not found") {
       return res.status(404).json({ error: "Topic not found." });

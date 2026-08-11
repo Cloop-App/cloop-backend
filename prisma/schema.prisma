@@ -240,3 +240,189 @@ model UserTopicReport {
   @@index([user_id])
   @@map("user_topic_reports")
 }
+
+// ─── Academic Intelligence Layer ─────────────────────────────────
+// Derived from the Cloop Academic Database Schema v1.0. These tables hold the
+// verified academic graph + student learning state that the mastery engine
+// and learning pipeline operate over. Per the schema spec's privacy rule,
+// academic/behavioural records are keyed by a pseudonymous `student_key` and
+// are intentionally NOT foreign-keyed to the identity `users` table; entities
+// reference each other by stable `code` strings so ingestion is order-free.
+
+model AcademicConcept {
+  concept_id      String   @id @default(uuid())
+  code            String   @unique // e.g. PHY-MEC-N2L-001
+  canonical_name  String
+  subject         String
+  class_level     Int?
+  description     String?  @db.Text
+  concept_type    String?  // factual | procedural | conceptual | ...
+  difficulty_band Int?     // 1..5 controlled scale
+  version         Int      @default(1)
+  status          String   @default("ACTIVE") // ACTIVE | GENERATED | DEPRECATED
+  source_id       String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([subject])
+  @@index([canonical_name])
+  @@map("academic_concepts")
+}
+
+model ConceptPrerequisite {
+  id                 String   @id @default(uuid())
+  concept_code       String   // the concept that HAS the requirement
+  prerequisite_code  String   // the upstream concept required first
+  strength           Float    @default(0.5)
+  evidence_source_id String?
+  created_at         DateTime @default(now())
+
+  @@unique([concept_code, prerequisite_code])
+  @@index([concept_code])
+  @@index([prerequisite_code])
+  @@map("concept_prerequisites")
+}
+
+model AcademicQuestion {
+  question_id           String   @id @default(uuid())
+  code                  String?  @unique
+  subject               String
+  question_type         String   // MCQ | NUMERICAL | SHORT_ANSWER | ...
+  difficulty            Int      @default(3) // 1..5
+  cognitive_level       String?
+  question_text         String   @db.Text
+  correct_answer        String?  @db.Text
+  solution              String?  @db.Text
+  concept_codes         String[] // weighted mapping stored separately if needed
+  verification_status   String   @default("GENERATED") // GENERATED | VERIFIED
+  source_id             String?
+  version               Int      @default(1)
+  created_at            DateTime @default(now())
+
+  @@index([subject, difficulty])
+  @@map("academic_questions")
+}
+
+model AcademicErrorType {
+  error_id             String   @id @default(uuid())
+  code                 String   @unique // e.g. ERR-VECTOR
+  category             String   // CONCEPTUAL | ALGEBRAIC | VECTOR | ...
+  subtype              String?
+  description          String?  @db.Text
+  severity             String?
+  version              Int      @default(1)
+
+  @@map("academic_error_types")
+}
+
+model Misconception {
+  misconception_id     String   @id @default(uuid())
+  code                 String   @unique
+  concept_code         String?
+  canonical_statement  String?  @db.Text
+  incorrect_belief     String?  @db.Text
+  correct_model        String?  @db.Text
+  confidence           Float?
+  status               String   @default("CANDIDATE") // CANDIDATE | CONFIRMED
+  version              Int      @default(1)
+  created_at           DateTime @default(now())
+
+  @@index([concept_code])
+  @@map("misconceptions")
+}
+
+model Intervention {
+  intervention_id   String   @id @default(uuid())
+  code              String?  @unique
+  type              String   // SOCRATIC_DIAGNOSTIC | COUNTEREXAMPLE | ...
+  instructional_goal String? @db.Text
+  content_template  String?  @db.Text
+  difficulty        Int?
+  targets           String[] // concept/error/misconception codes
+  created_at        DateTime @default(now())
+
+  @@map("interventions")
+}
+
+model LearningInteraction {
+  interaction_id        String   @id @default(uuid())
+  student_key           String   // pseudonymous — NOT the identity user_id
+  session_id            String?
+  question_code         String?
+  concept_code          String?
+  interaction_type      String   @default("QUESTION_RESPONSE")
+  student_response      String?  @db.Text
+  student_reasoning     String?  @db.Text
+  correctness           String?  // correct | partial | incorrect_* | unknown
+  time_taken_seconds    Int?
+  student_confidence    Float?
+  error_labels          Json?    // [{error_id, confidence}]
+  misconception_candidates Json? // [{misconception_id, confidence}]
+  pipeline_output       Json?    // full §21 output object for audit/training
+  created_at            DateTime @default(now())
+
+  @@index([student_key, created_at])
+  @@index([question_code])
+  @@map("learning_interactions")
+}
+
+model MasteryState {
+  id                     String   @id @default(uuid())
+  student_key            String   // pseudonymous
+  concept_code           String
+  recall_score           Float    @default(0)
+  understanding_score    Float    @default(0)
+  application_score      Float    @default(0)
+  analysis_score         Float    @default(0)
+  transfer_score         Float    @default(0)
+  procedural_fluency_score Float  @default(0)
+  retention_score        Float    @default(0)
+  overall_mastery        Float    @default(0)
+  uncertainty            Float    @default(0.4)
+  evidence_count         Int      @default(0)
+  last_assessed_at       DateTime?
+  model_version          String   @default("mastery-v1.0")
+  updated_at             DateTime @updatedAt
+
+  @@unique([student_key, concept_code])
+  @@index([student_key])
+  @@map("mastery_states")
+}
+
+model MasteryEvent {
+  mastery_event_id  String   @id @default(uuid())
+  student_key       String
+  concept_code      String
+  interaction_id    String?
+  mastery_before    Float?
+  mastery_after     Float?
+  dimension_updates Json?
+  evidence          Json?
+  diagnosis         Json?
+  update_reason     String?
+  model_version     String   @default("mastery-v1.0")
+  created_at        DateTime @default(now())
+
+  @@index([student_key, concept_code, created_at])
+  @@map("mastery_events")
+}
+
+model TrainingExample {
+  training_example_id  String   @id @default(uuid())
+  task_type            String   // STUDENT_DIAGNOSIS | ERROR_CLASSIFICATION | ...
+  input_context        Json
+  student_state        Json?
+  academic_context     Json?
+  expected_reasoning   Json?
+  expected_output      Json?
+  labels               Json?
+  quality_score        Float?
+  annotation_status    String   @default("SYNTHETIC") // SYNTHETIC | HUMAN_VERIFIED
+  split                String   @default("TRAIN") // TRAIN | VALIDATION | TEST
+  source_interaction_ids Json?
+  version              Int      @default(1)
+  created_at           DateTime @default(now())
+
+  @@index([task_type, split, annotation_status])
+  @@map("training_examples")
+}

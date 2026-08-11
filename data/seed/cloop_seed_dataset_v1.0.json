@@ -1,0 +1,552 @@
+{
+  "metadata": {
+    "dataset_name": "Cloop Seed Dataset v1.0",
+    "status": "PILOT_SYNTHETIC",
+    "scope": [
+      "CBSE Class 10",
+      "CBSE Class 11",
+      "JEE Main"
+    ],
+    "subjects": [
+      "Mathematics",
+      "Physics"
+    ],
+    "note": "Synthetic pilot for schema/pipeline validation. Production content must be sourced and verified."
+  },
+  "concepts": [
+    {
+      "id": "MATH-ALG-003",
+      "name": "Factorisation",
+      "subject": "Mathematics",
+      "class": 10,
+      "difficulty": 2
+    },
+    {
+      "id": "MATH-ALG-002",
+      "name": "Quadratic Equations",
+      "subject": "Mathematics",
+      "class": 10,
+      "difficulty": 3
+    },
+    {
+      "id": "MATH-TRIG-001",
+      "name": "Trigonometric Ratios",
+      "subject": "Mathematics",
+      "class": 10,
+      "difficulty": 2
+    },
+    {
+      "id": "MATH-PROB-001",
+      "name": "Basic Probability",
+      "subject": "Mathematics",
+      "class": 10,
+      "difficulty": 2
+    },
+    {
+      "id": "MATH-COORD-001",
+      "name": "Coordinate Geometry",
+      "subject": "Mathematics",
+      "class": 10,
+      "difficulty": 3
+    },
+    {
+      "id": "PHY-KIN-001",
+      "name": "Kinematics",
+      "subject": "Physics",
+      "class": 11,
+      "difficulty": 3
+    },
+    {
+      "id": "PHY-VEC-001",
+      "name": "Vector Components",
+      "subject": "Physics",
+      "class": 11,
+      "difficulty": 3
+    },
+    {
+      "id": "PHY-MEC-001",
+      "name": "Newton's Laws of Motion",
+      "subject": "Physics",
+      "class": 11,
+      "difficulty": 3
+    },
+    {
+      "id": "PHY-MEC-002",
+      "name": "Free-Body Diagrams",
+      "subject": "Physics",
+      "class": 11,
+      "difficulty": 3
+    },
+    {
+      "id": "PHY-WRK-001",
+      "name": "Work-Energy Theorem",
+      "subject": "Physics",
+      "class": 11,
+      "difficulty": 3
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "PRE-001",
+      "concept": "MATH-ALG-002",
+      "requires": "MATH-ALG-003",
+      "strength": 0.8
+    },
+    {
+      "id": "PRE-002",
+      "concept": "PHY-KIN-001",
+      "requires": "PHY-VEC-001",
+      "strength": 0.6
+    },
+    {
+      "id": "PRE-003",
+      "concept": "PHY-MEC-001",
+      "requires": "PHY-KIN-001",
+      "strength": 0.5
+    },
+    {
+      "id": "PRE-004",
+      "concept": "PHY-MEC-002",
+      "requires": "PHY-MEC-001",
+      "strength": 0.9
+    },
+    {
+      "id": "PRE-005",
+      "concept": "PHY-WRK-001",
+      "requires": "PHY-MEC-001",
+      "strength": 0.5
+    }
+  ],
+  "learning_outcomes": [
+    {
+      "id": "LO-001",
+      "concept": "MATH-ALG-002",
+      "level": "APPLY",
+      "statement": "Solve quadratic equations using an appropriate method."
+    },
+    {
+      "id": "LO-002",
+      "concept": "MATH-TRIG-001",
+      "level": "APPLY",
+      "statement": "Select and apply an appropriate trigonometric ratio."
+    },
+    {
+      "id": "LO-003",
+      "concept": "PHY-VEC-001",
+      "level": "APPLY",
+      "statement": "Resolve a vector into perpendicular components."
+    },
+    {
+      "id": "LO-004",
+      "concept": "PHY-MEC-002",
+      "level": "APPLY",
+      "statement": "Construct a correct free-body diagram."
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "MIS-MATH-001",
+      "concept": "MATH-ALG-003",
+      "belief": "(a+b)^2=a^2+b^2",
+      "correct_model": "(a+b)^2=a^2+2ab+b^2"
+    },
+    {
+      "id": "MIS-MATH-002",
+      "concept": "MATH-TRIG-001",
+      "belief": "Any trigonometric ratio can be used interchangeably.",
+      "correct_model": "Ratio selection depends on the chosen angle and sides."
+    },
+    {
+      "id": "MIS-PHY-001",
+      "concept": "PHY-MEC-001",
+      "belief": "Action-reaction forces act on the same object.",
+      "correct_model": "They act on two different interacting bodies."
+    },
+    {
+      "id": "MIS-PHY-002",
+      "concept": "PHY-KIN-001",
+      "belief": "Constant velocity requires a non-zero net force.",
+      "correct_model": "Constant velocity means zero acceleration and zero net force."
+    },
+    {
+      "id": "MIS-PHY-003",
+      "concept": "PHY-VEC-001",
+      "belief": "Vector components are always positive magnitudes.",
+      "correct_model": "Components are signed projections along chosen axes."
+    }
+  ],
+  "errors": [
+    {
+      "id": "ERR-CONCEPT",
+      "category": "CONCEPTUAL",
+      "description": "Incorrect conceptual model."
+    },
+    {
+      "id": "ERR-ALG",
+      "category": "ALGEBRAIC",
+      "description": "Incorrect algebraic manipulation."
+    },
+    {
+      "id": "ERR-TRIG",
+      "category": "CONCEPTUAL",
+      "description": "Incorrect trigonometric ratio selection."
+    },
+    {
+      "id": "ERR-VECTOR",
+      "category": "VECTOR",
+      "description": "Incorrect component direction or sign."
+    },
+    {
+      "id": "ERR-DIAGRAM",
+      "category": "DIAGRAM",
+      "description": "Force omitted or incorrectly represented."
+    },
+    {
+      "id": "ERR-PREREQ",
+      "category": "PREREQUISITE_GAP",
+      "description": "Upstream concept weakness limits target performance."
+    }
+  ],
+  "interventions": [
+    {
+      "id": "INT-001",
+      "type": "SOCRATIC_DIAGNOSTIC",
+      "goal": "Expose the student's mental model before explanation.",
+      "targets": [
+        "MIS-PHY-001",
+        "PHY-MEC-002"
+      ]
+    },
+    {
+      "id": "INT-002",
+      "type": "VISUAL_REPRESENTATION",
+      "goal": "Use a labelled vector diagram.",
+      "targets": [
+        "MIS-PHY-003",
+        "PHY-VEC-001"
+      ]
+    },
+    {
+      "id": "INT-003",
+      "type": "COUNTEREXAMPLE",
+      "goal": "Disprove an incorrect algebraic rule numerically.",
+      "targets": [
+        "MIS-MATH-001",
+        "MATH-ALG-003"
+      ]
+    },
+    {
+      "id": "INT-004",
+      "type": "WORKED_EXAMPLE",
+      "goal": "Demonstrate correct trigonometric ratio selection.",
+      "targets": [
+        "MIS-MATH-002",
+        "MATH-TRIG-001"
+      ]
+    },
+    {
+      "id": "INT-005",
+      "type": "PREREQUISITE_REMEDIATION",
+      "goal": "Repair an upstream concept before retrying the target.",
+      "targets": [
+        "PHY-KIN-001",
+        "PHY-MEC-001"
+      ]
+    },
+    {
+      "id": "INT-006",
+      "type": "RETEST",
+      "goal": "Verify transfer after intervention.",
+      "targets": [
+        "MATH-ALG-002",
+        "PHY-MEC-002"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q-MATH-001",
+      "subject": "Mathematics",
+      "concepts": [
+        "MATH-ALG-002",
+        "MATH-ALG-003"
+      ],
+      "type": "SHORT_ANSWER",
+      "difficulty": 2,
+      "question": "Solve x^2-5x+6=0.",
+      "answer": "x=2,3",
+      "solution": "(x-2)(x-3)=0."
+    },
+    {
+      "id": "Q-MATH-002",
+      "subject": "Mathematics",
+      "concepts": [
+        "MATH-ALG-003"
+      ],
+      "type": "SHORT_ANSWER",
+      "difficulty": 2,
+      "question": "Expand (x+3)^2.",
+      "answer": "x^2+6x+9",
+      "solution": "Use (a+b)^2=a^2+2ab+b^2."
+    },
+    {
+      "id": "Q-MATH-003",
+      "subject": "Mathematics",
+      "concepts": [
+        "MATH-TRIG-001"
+      ],
+      "type": "MCQ",
+      "difficulty": 2,
+      "question": "A right triangle has opposite=3 and hypotenuse=5. Find sin(theta).",
+      "answer": "3/5",
+      "solution": "sin(theta)=opposite/hypotenuse."
+    },
+    {
+      "id": "Q-MATH-004",
+      "subject": "Mathematics",
+      "concepts": [
+        "MATH-PROB-001"
+      ],
+      "type": "MCQ",
+      "difficulty": 1,
+      "question": "A fair die is rolled once. Probability of an even number?",
+      "answer": "1/2",
+      "solution": "Three favourable outcomes out of six."
+    },
+    {
+      "id": "Q-MATH-005",
+      "subject": "Mathematics",
+      "concepts": [
+        "MATH-COORD-001"
+      ],
+      "type": "SHORT_ANSWER",
+      "difficulty": 2,
+      "question": "Find distance between (1,2) and (4,6).",
+      "answer": "5",
+      "solution": "sqrt(3^2+4^2)=5."
+    },
+    {
+      "id": "Q-PHY-001",
+      "subject": "Physics",
+      "concepts": [
+        "PHY-KIN-001",
+        "PHY-MEC-001"
+      ],
+      "type": "MCQ",
+      "difficulty": 2,
+      "question": "A body moves with constant velocity. What is its net force?",
+      "answer": "0",
+      "solution": "Constant velocity means zero acceleration, so net force is zero."
+    },
+    {
+      "id": "Q-PHY-002",
+      "subject": "Physics",
+      "concepts": [
+        "PHY-MEC-001"
+      ],
+      "type": "NUMERICAL",
+      "difficulty": 2,
+      "question": "A 2 kg object accelerates at 3 m/s^2. Find net force.",
+      "answer": "6 N",
+      "solution": "F=ma=6 N."
+    },
+    {
+      "id": "Q-PHY-003",
+      "subject": "Physics",
+      "concepts": [
+        "PHY-VEC-001"
+      ],
+      "type": "NUMERICAL",
+      "difficulty": 3,
+      "question": "A 10 N force makes 60° with x-axis. Find x-component.",
+      "answer": "5 N",
+      "solution": "Fx=F cos60=5 N."
+    },
+    {
+      "id": "Q-PHY-004",
+      "subject": "Physics",
+      "concepts": [
+        "PHY-MEC-002"
+      ],
+      "type": "SHORT_ANSWER",
+      "difficulty": 3,
+      "question": "List forces on a block pulled horizontally on a rough horizontal surface.",
+      "answer": "Weight, normal reaction, applied pull and friction.",
+      "solution": "Include only forces acting on the block."
+    },
+    {
+      "id": "Q-PHY-005",
+      "subject": "Physics",
+      "concepts": [
+        "PHY-WRK-001"
+      ],
+      "type": "NUMERICAL",
+      "difficulty": 3,
+      "question": "A 2 kg body speeds up from 2 to 6 m/s. Find change in kinetic energy.",
+      "answer": "32 J",
+      "solution": "ΔK=1/2 m(v²-u²)=32 J."
+    }
+  ],
+  "student_interactions": [
+    {
+      "id": "INTX-001",
+      "student": "STU-SYN-001",
+      "question": "Q-PHY-001",
+      "response": "Non-zero because it is moving.",
+      "correct": false,
+      "error": "ERR-CONCEPT",
+      "misconception": "MIS-PHY-002",
+      "intervention": "INT-005",
+      "confidence": 0.91
+    },
+    {
+      "id": "INTX-002",
+      "student": "STU-SYN-001",
+      "question": "Q-PHY-003",
+      "response": "10 sin 60 = 8.66 N",
+      "correct": false,
+      "error": "ERR-VECTOR",
+      "misconception": "MIS-PHY-003",
+      "intervention": "INT-002",
+      "confidence": 0.79
+    },
+    {
+      "id": "INTX-003",
+      "student": "STU-SYN-002",
+      "question": "Q-MATH-002",
+      "response": "x^2+9",
+      "correct": false,
+      "error": "ERR-ALG",
+      "misconception": "MIS-MATH-001",
+      "intervention": "INT-003",
+      "confidence": 0.95
+    },
+    {
+      "id": "INTX-004",
+      "student": "STU-SYN-002",
+      "question": "Q-MATH-003",
+      "response": "5/3",
+      "correct": false,
+      "error": "ERR-TRIG",
+      "misconception": "MIS-MATH-002",
+      "intervention": "INT-004",
+      "confidence": 0.88
+    },
+    {
+      "id": "INTX-005",
+      "student": "STU-SYN-001",
+      "question": "Q-PHY-002",
+      "response": "6 N",
+      "correct": true,
+      "error": null,
+      "misconception": null,
+      "intervention": null,
+      "confidence": 0.91
+    },
+    {
+      "id": "INTX-006",
+      "student": "STU-SYN-002",
+      "question": "Q-MATH-001",
+      "response": "2,3",
+      "correct": true,
+      "error": null,
+      "misconception": null,
+      "intervention": null,
+      "confidence": 0.89
+    }
+  ],
+  "mastery_states": [
+    {
+      "student": "STU-SYN-001",
+      "concept": "PHY-KIN-001",
+      "overall_mastery": 0.47,
+      "uncertainty": 0.19,
+      "evidence_count": 4
+    },
+    {
+      "student": "STU-SYN-001",
+      "concept": "PHY-MEC-001",
+      "overall_mastery": 0.62,
+      "uncertainty": 0.14,
+      "evidence_count": 5
+    },
+    {
+      "student": "STU-SYN-001",
+      "concept": "PHY-VEC-001",
+      "overall_mastery": 0.47,
+      "uncertainty": 0.2,
+      "evidence_count": 3
+    },
+    {
+      "student": "STU-SYN-002",
+      "concept": "MATH-ALG-003",
+      "overall_mastery": 0.31,
+      "uncertainty": 0.16,
+      "evidence_count": 3
+    },
+    {
+      "student": "STU-SYN-002",
+      "concept": "MATH-TRIG-001",
+      "overall_mastery": 0.41,
+      "uncertainty": 0.18,
+      "evidence_count": 2
+    }
+  ],
+  "training_examples": [
+    {
+      "id": "TR-001",
+      "task": "STUDENT_DIAGNOSIS",
+      "input": {
+        "question": "Constant velocity: net force?",
+        "response": "Non-zero because it is moving."
+      },
+      "expected": {
+        "error": "ERR-CONCEPT",
+        "misconception": "MIS-PHY-002",
+        "intervention": "INT-005"
+      },
+      "quality": 0.97
+    },
+    {
+      "id": "TR-002",
+      "task": "MISCONCEPTION_DETECTION",
+      "input": {
+        "question": "Expand (x+3)^2.",
+        "response": "x^2+9"
+      },
+      "expected": {
+        "misconception": "MIS-MATH-001"
+      },
+      "quality": 0.98
+    },
+    {
+      "id": "TR-003",
+      "task": "ADAPTIVE_NEXT_ACTION",
+      "input": {
+        "mastery": {
+          "PHY-MEC-002": 0.43,
+          "PHY-MEC-001": 0.61,
+          "PHY-VEC-001": 0.47
+        }
+      },
+      "expected": {
+        "action": "INT-001",
+        "reason": "Diagnose weak free-body-diagram understanding before more difficult application."
+      },
+      "quality": 0.94
+    },
+    {
+      "id": "TR-004",
+      "task": "QUESTION_EVALUATION",
+      "input": {
+        "question": "2 kg body: 2 to 6 m/s; change in kinetic energy?",
+        "answer": "32 J"
+      },
+      "expected": {
+        "valid": true,
+        "verification": "deterministic_calculation"
+      },
+      "quality": 0.99
+    }
+  ]
+}

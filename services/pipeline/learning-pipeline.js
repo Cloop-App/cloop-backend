@@ -204,6 +204,10 @@ function planAction(ctx = {}) {
   const misConf = clamp01(ctx.misconception?.confidence ?? 0);
   const examRelevance = clamp01(ctx.examRelevance ?? 0.5);
   const repetitionPenalty = clamp01(0.1 * (ctx.nSimilar ?? 0));
+  // Whether this turn was a failure. Diagnosis/probing only has information
+  // value when there is an actual error to explain; after a correct answer the
+  // right verification moves are transfer/retrieval, not a misconception probe.
+  const isFailure = ctx.correct === false || (ctx.correct == null && (misConf > 0 || prereqNeedsReview));
 
   // "One response is not enough to establish a stable misconception." Until a
   // diagnosis is confirmed (promoted, or backed by ≥2 pieces of evidence), the
@@ -216,15 +220,15 @@ function planAction(ctx = {}) {
   const add = (type, utility, reason) =>
     candidates.push({ type, utility: +utility.toFixed(4), reason, use_when: ACTIONS[type] });
 
-  // Diagnostic question — high value when the source of error is uncertain or
-  // the current diagnosis is not yet confirmed by independent evidence.
+  // Diagnostic question — high value when a FAILURE's source is uncertain or
+  // the current diagnosis is not yet confirmed by independent evidence. There
+  // is nothing to diagnose after a correct answer.
+  const diagnosticValue = isFailure
+    ? 0.6 * uncertainty + 0.2 * (misConf > 0 && misConf < 0.7 ? 1 : 0) + (confirmed ? 0 : 0.15)
+    : 0;
   add(
     "DIAGNOSTIC_QUESTION",
-    0.2 +
-      0.6 * uncertainty +
-      0.2 * (misConf > 0 && misConf < 0.7 ? 1 : 0) +
-      (confirmed ? 0 : 0.15) -
-      repetitionPenalty,
+    0.2 + diagnosticValue - repetitionPenalty,
     "Uncertain/unconfirmed diagnosis has high information value; distinguish competing causes."
   );
 
@@ -247,10 +251,10 @@ function planAction(ctx = {}) {
     "A confident misconception is best disconfirmed with a counterexample."
   );
 
-  // Socratic dialogue — probe an uncertain mental model.
+  // Socratic dialogue — probe an uncertain mental model (only on a failure).
   add(
     "SOCRATIC_DIALOGUE",
-    0.25 + 0.4 * uncertainty + 0.2 * misConf,
+    0.25 + (isFailure ? 0.4 * uncertainty + 0.2 * misConf : 0),
     "Probe the student's reasoning to expose the mental model."
   );
 
@@ -309,20 +313,32 @@ async function runPipeline(input, deps = {}) {
     masteryState = { dimensions: {}, uncertainty: 0.3 },
   } = input;
 
+  const outcome = mapCorrectness(evaluation.correctness);
+  const isCorrect = outcome === "correct";
+
   // Stage D — error detection.
   const error = detectError({
-    correctness: mapCorrectness(evaluation.correctness),
+    correctness: outcome,
     explicitErrorType: input.errorSignals?.explicitErrorType,
     evaluatorConfidence: evaluation.confidence,
     ...input.errorSignals,
   });
 
-  // Stage E — misconception hypotheses.
-  const mis = misconceptionConfidence(input.misconceptionFactors || {});
+  // Stage E — misconception hypotheses. Only meaningful on a failure with
+  // supplied evidence: a correct answer must not manufacture a misconception.
+  const hasMisEvidence =
+    !isCorrect &&
+    input.misconceptionFactors &&
+    Object.keys(input.misconceptionFactors).length > 0;
+  const mis = hasMisEvidence
+    ? misconceptionConfidence(input.misconceptionFactors)
+    : { candidate: false, confidence: 0, promote: false };
 
-  // Stage F — prerequisite diagnosis.
+  // Stage F — prerequisite diagnosis. Blame is only attributable upstream
+  // when THIS interaction actually failed; a correct answer never flags a
+  // prerequisite for remediation.
   const prereq = prerequisiteCheck(input.prerequisites || [], {
-    errorCompatible: error.error_id === "prerequisite_gap" || input.prerequisites?.length > 0,
+    errorCompatible: !isCorrect && (input.prerequisites?.length ?? 0) > 0,
   });
 
   // Stage G — mastery update (authoritative; SLM never writes this).
@@ -357,6 +373,7 @@ async function runPipeline(input, deps = {}) {
   const plan = planAction({
     mastery: overall,
     uncertainty: newState.uncertainty,
+    correct: isCorrect,
     prerequisite: prereq,
     misconception: mis,
     misconceptionPromoted: mis.promote,

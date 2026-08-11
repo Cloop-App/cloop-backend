@@ -1,0 +1,124 @@
+[
+  {
+    "id": "Q-MATH-001",
+    "subject": "Mathematics",
+    "concepts": [
+      "MATH-ALG-002",
+      "MATH-ALG-003"
+    ],
+    "type": "SHORT_ANSWER",
+    "difficulty": 2,
+    "question": "Solve x^2-5x+6=0.",
+    "answer": "x=2,3",
+    "solution": "(x-2)(x-3)=0."
+  },
+  {
+    "id": "Q-MATH-002",
+    "subject": "Mathematics",
+    "concepts": [
+      "MATH-ALG-003"
+    ],
+    "type": "SHORT_ANSWER",
+    "difficulty": 2,
+    "question": "Expand (x+3)^2.",
+    "answer": "x^2+6x+9",
+    "solution": "Use (a+b)^2=a^2+2ab+b^2."
+  },
+  {
+    "id": "Q-MATH-003",
+    "subject": "Mathematics",
+    "concepts": [
+      "MATH-TRIG-001"
+    ],
+    "type": "MCQ",
+    "difficulty": 2,
+    "question": "A right triangle has opposite=3 and hypotenuse=5. Find sin(theta).",
+    "answer": "3/5",
+    "solution": "sin(theta)=opposite/hypotenuse."
+  },
+  {
+    "id": "Q-MATH-004",
+    "subject": "Mathematics",
+    "concepts": [
+      "MATH-PROB-001"
+    ],
+    "type": "MCQ",
+    "difficulty": 1,
+    "question": "A fair die is rolled once. Probability of an even number?",
+    "answer": "1/2",
+    "solution": "Three favourable outcomes out of six."
+  },
+  {
+    "id": "Q-MATH-005",
+    "subject": "Mathematics",
+    "concepts": [
+      "MATH-COORD-001"
+    ],
+    "type": "SHORT_ANSWER",
+    "difficulty": 2,
+    "question": "Find distance between (1,2) and (4,6).",
+    "answer": "5",
+    "solution": "sqrt(3^2+4^2)=5."
+  },
+  {
+    "id": "Q-PHY-001",
+    "subject": "Physics",
+    "concepts": [
+      "PHY-KIN-001",
+      "PHY-MEC-001"
+    ],
+    "type": "MCQ",
+    "difficulty": 2,
+    "question": "A body moves with constant velocity. What is its net force?",
+    "answer": "0",
+    "solution": "Constant velocity means zero acceleration, so net force is zero."
+  },
+  {
+    "id": "Q-PHY-002",
+    "subject": "Physics",
+    "concepts": [
+      "PHY-MEC-001"
+    ],
+    "type": "NUMERICAL",
+    "difficulty": 2,
+    "question": "A 2 kg object accelerates at 3 m/s^2. Find net force.",
+    "answer": "6 N",
+    "solution": "F=ma=6 N."
+  },
+  {
+    "id": "Q-PHY-003",
+    "subject": "Physics",
+    "concepts": [
+      "PHY-VEC-001"
+    ],
+    "type": "NUMERICAL",
+    "difficulty": 3,
+    "question": "A 10 N force makes 60° with x-axis. Find x-component.",
+    "answer": "5 N",
+    "solution": "Fx=F cos60=5 N."
+  },
+  {
+    "id": "Q-PHY-004",
+    "subject": "Physics",
+    "concepts": [
+      "PHY-MEC-002"
+    ],
+    "type": "SHORT_ANSWER",
+    "difficulty": 3,
+    "question": "List forces on a block pulled horizontally on a rough horizontal surface.",
+    "answer": "Weight, normal reaction, applied pull and friction.",
+    "solution": "Include only forces acting on the block."
+  },
+  {
+    "id": "Q-PHY-005",
+    "subject": "Physics",
+    "concepts": [
+      "PHY-WRK-001"
+    ],
+    "type": "NUMERICAL",
+    "difficulty": 3,
+    "question": "A 2 kg body speeds up from 2 to 6 m/s. Find change in kinetic energy.",
+    "answer": "32 J",
+    "solution": "ΔK=1/2 m(v²-u²)=32 J."
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "PRE-001",
+    "concept": "MATH-ALG-002",
+    "requires": "MATH-ALG-003",
+    "strength": 0.8
+  },
+  {
+    "id": "PRE-002",
+    "concept": "PHY-KIN-001",
+    "requires": "PHY-VEC-001",
+    "strength": 0.6
+  },
+  {
+    "id": "PRE-003",
+    "concept": "PHY-MEC-001",
+    "requires": "PHY-KIN-001",
+    "strength": 0.5
+  },
+  {
+    "id": "PRE-004",
+    "concept": "PHY-MEC-002",
+    "requires": "PHY-MEC-001",
+    "strength": 0.9
+  },
+  {
+    "id": "PRE-005",
+    "concept": "PHY-WRK-001",
+    "requires": "PHY-MEC-001",
+    "strength": 0.5
+  }
+]

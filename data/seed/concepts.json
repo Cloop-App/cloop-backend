@@ -1,0 +1,72 @@
+[
+  {
+    "id": "MATH-ALG-003",
+    "name": "Factorisation",
+    "subject": "Mathematics",
+    "class": 10,
+    "difficulty": 2
+  },
+  {
+    "id": "MATH-ALG-002",
+    "name": "Quadratic Equations",
+    "subject": "Mathematics",
+    "class": 10,
+    "difficulty": 3
+  },
+  {
+    "id": "MATH-TRIG-001",
+    "name": "Trigonometric Ratios",
+    "subject": "Mathematics",
+    "class": 10,
+    "difficulty": 2
+  },
+  {
+    "id": "MATH-PROB-001",
+    "name": "Basic Probability",
+    "subject": "Mathematics",
+    "class": 10,
+    "difficulty": 2
+  },
+  {
+    "id": "MATH-COORD-001",
+    "name": "Coordinate Geometry",
+    "subject": "Mathematics",
+    "class": 10,
+    "difficulty": 3
+  },
+  {
+    "id": "PHY-KIN-001",
+    "name": "Kinematics",
+    "subject": "Physics",
+    "class": 11,
+    "difficulty": 3
+  },
+  {
+    "id": "PHY-VEC-001",
+    "name": "Vector Components",
+    "subject": "Physics",
+    "class": 11,
+    "difficulty": 3
+  },
+  {
+    "id": "PHY-MEC-001",
+    "name": "Newton's Laws of Motion",
+    "subject": "Physics",
+    "class": 11,
+    "difficulty": 3
+  },
+  {
+    "id": "PHY-MEC-002",
+    "name": "Free-Body Diagrams",
+    "subject": "Physics",
+    "class": 11,
+    "difficulty": 3
+  },
+  {
+    "id": "PHY-WRK-001",
+    "name": "Work-Energy Theorem",
+    "subject": "Physics",
+    "class": 11,
+    "difficulty": 3
+  }
+]

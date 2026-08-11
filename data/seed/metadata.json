@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Cloop Seed Dataset v1.0",
+  "status": "PILOT_SYNTHETIC",
+  "scope": [
+    "CBSE Class 10",
+    "CBSE Class 11",
+    "JEE Main"
+  ],
+  "subjects": [
+    "Mathematics",
+    "Physics"
+  ],
+  "note": "Synthetic pilot for schema/pipeline validation. Production content must be sourced and verified."
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "rule_id": "RM-01",
+    "trigger": "Prerequisite remediation",
+    "action": "If prerequisite gate fails, route to prerequisite concept before reteaching dependent concept."
+  },
+  {
+    "rule_id": "RM-02",
+    "trigger": "Concept remediation",
+    "action": "If explanation/representation fails, provide alternate representation + worked contrast."
+  },
+  {
+    "rule_id": "RM-03",
+    "trigger": "Procedure remediation",
+    "action": "If application fails but concept is understood, use scaffolded steps and fading prompts."
+  },
+  {
+    "rule_id": "RM-04",
+    "trigger": "Error remediation",
+    "action": "If repeated tagged error occurs, deliver targeted misconception correction and contrastive example."
+  },
+  {
+    "rule_id": "RM-05",
+    "trigger": "Transfer remediation",
+    "action": "If transfer fails, vary surface features while preserving underlying structure."
+  },
+  {
+    "rule_id": "RM-06",
+    "trigger": "Retention remediation",
+    "action": "If stability falls after spacing, schedule retrieval practice with increasing intervals."
+  }
+]

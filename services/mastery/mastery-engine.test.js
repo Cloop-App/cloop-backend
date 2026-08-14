@@ -26,14 +26,28 @@ test("§4 weightedMastery of all-equal dims equals that value", () => {
   near(M.weightedMastery(dims), 0.5);
 });
 
-// ─── §5 Mastery bands ────────────────────────────────────────────
-test("§5 mastery bands map to the spec's ranges", () => {
-  assert.equal(M.masteryBand(0.1).band, "Unmastered");
+test("v8 has the 7 canonical stages", () => {
+  assert.deepEqual(M.DIMENSIONS, [
+    "identification",
+    "explanation",
+    "representation",
+    "application",
+    "error_diagnosis",
+    "transfer",
+    "stability",
+  ]);
+});
+
+// ─── v8 Mastery bands (4 levels) + 0.80 threshold ────────────────
+test("v8 mastery bands map to the workbook's ranges", () => {
   assert.equal(M.masteryBand(0.3).band, "Emerging");
-  assert.equal(M.masteryBand(0.55).band, "Developing");
+  assert.equal(M.masteryBand(0.5).band, "Developing");
   assert.equal(M.masteryBand(0.7).band, "Proficient");
-  assert.equal(M.masteryBand(0.85).band, "Strong");
-  assert.equal(M.masteryBand(0.95).band, "Mastered");
+  assert.equal(M.masteryBand(0.85).band, "Mastered");
+  // 0.80 threshold + prerequisite gate
+  assert.equal(M.masteryBand(0.85).mastered, true);
+  assert.equal(M.masteryBand(0.85, { prerequisiteGateOpen: true }).mastered, false);
+  assert.equal(M.masteryBand(0.79).mastered, false);
 });
 
 // ─── §7 Correctness signal ───────────────────────────────────────
@@ -157,8 +171,8 @@ test("Validation: hard transfer correct → larger transfer update than easy rec
     difficulty: 0.35,
   }).state;
   assert.ok(
-    transfer.dimensions.transfer - 0.5 > recall.dimensions.recall - 0.5,
-    "transfer evidence should move its dimension more than easy recall"
+    transfer.dimensions.transfer - 0.5 > recall.dimensions.identification - 0.5,
+    "transfer evidence should move its stage more than easy recall/identification"
   );
 });
 
@@ -201,30 +215,41 @@ test("Validation: correct with hints → positive but discounted vs no hints", (
   );
 });
 
-test("Validation: calculation slip → fluency penalty stronger than conceptual dims", () => {
+test("Validation: calculation slip (ERR-CALC-01) hits application gently, not explanation", () => {
   const state = { dimensions: dimsAt(0.62), uncertainty: 0.2 };
   const { state: next } = M.updateMastery(state, {
     outcome: "incorrect_valid_method",
-    errorType: "calculation",
+    errorType: "ERR-CALC-01",
     difficulty: 0.6,
   });
-  const dF = 0.62 - next.dimensions.procedural_fluency;
-  const dU = 0.62 - next.dimensions.understanding; // untouched
-  assert.ok(dF > 0, "fluency should drop");
-  assert.ok(dU <= 1e-9, "understanding should be untouched by a calc slip");
+  const dApp = 0.62 - next.dimensions.application;
+  const dExpl = 0.62 - next.dimensions.explanation; // untouched
+  assert.ok(dApp > 0, "application should drop");
+  assert.ok(dExpl <= 1e-9, "explanation should be untouched by a calc slip");
+
+  // Gentle: a calc slip moves application less than a conceptual error would.
+  const conceptual = M.updateMastery(state, {
+    outcome: "incorrect_conceptual",
+    errorType: "ERR-CON-01",
+    difficulty: 0.6,
+  }).state;
+  assert.ok(
+    0.62 - conceptual.dimensions.application > dApp,
+    "conceptual error should hit application harder than a calc slip"
+  );
 });
 
-test("Validation: conceptual misconception → meaningful U/A/N reduction", () => {
+test("Validation: conceptual misconception (ERR-CON-01) → explanation/application/error_diagnosis drop", () => {
   const state = { dimensions: dimsAt(0.62), uncertainty: 0.2 };
   const { state: next, event } = M.updateMastery(state, {
     outcome: "incorrect_conceptual",
-    errorType: "conceptual",
+    errorType: "ERR-CON-01",
     difficulty: 0.7,
   });
-  assert.ok(next.dimensions.understanding < 0.62);
+  assert.ok(next.dimensions.explanation < 0.62);
   assert.ok(next.dimensions.application < 0.62);
-  assert.ok(next.dimensions.analysis < 0.62);
-  assert.ok(next.dimensions.recall === 0.62, "recall untouched");
+  assert.ok(next.dimensions.error_diagnosis < 0.62);
+  assert.ok(next.dimensions.identification === 0.62, "identification untouched");
   assert.ok(event && event.after.overall < event.before.overall);
 });
 
@@ -281,7 +306,7 @@ test("§26 update produces an immutable-style audit event with before/after", ()
 test("§29 SLM state packet carries guardrails and weak dimensions", () => {
   const state = {
     concept_id: "PHY-MEC-001",
-    dimensions: { ...dimsAt(0.6), understanding: 0.3, transfer: 0.2 },
+    dimensions: { ...dimsAt(0.6), explanation: 0.3, transfer: 0.2 },
     overall_mastery: 0.47,
     uncertainty: 0.19,
   };
@@ -290,12 +315,12 @@ test("§29 SLM state packet carries guardrails and weak dimensions", () => {
     difficultyTarget: 0.4,
   });
   assert.ok(packet.weak_dimensions.includes("transfer"));
-  assert.ok(packet.weak_dimensions.includes("understanding"));
+  assert.ok(packet.weak_dimensions.includes("explanation"));
   assert.equal(packet.selected_action, "SOCRATIC_DIAGNOSTIC");
   assert.ok(packet.do_not_do.includes("overwrite_mastery_state"));
 });
 
-// helper: build a dimensions object where every dimension = v
+// helper: build a v8 stage dimensions object where every stage = v
 function dimsAt(v) {
   return M.DIMENSIONS.reduce((a, d) => ((a[d] = v), a), {});
 }

@@ -29,9 +29,9 @@ test("error categories map to engine error types", () => {
   const loaded = loadSeed();
   const byId = new Map(loaded.raw.student_interactions.map((i) => [i.id, i]));
   const inputFor = (id) => interactionToPipelineInput(byId.get(id), loaded);
-  assert.equal(inputFor("INTX-002").errorSignals.explicitErrorType, "vector");
-  assert.equal(inputFor("INTX-003").errorSignals.explicitErrorType, "algebraic");
-  assert.equal(inputFor("INTX-001").errorSignals.explicitErrorType, "conceptual");
+  assert.equal(inputFor("INTX-002").errorSignals.explicitErrorType, "ERR-REP-01"); // vector→representation
+  assert.equal(inputFor("INTX-003").errorSignals.explicitErrorType, "ERR-PROC-01"); // algebraic→procedural
+  assert.equal(inputFor("INTX-001").errorSignals.explicitErrorType, "ERR-CON-01"); // conceptual
 });
 
 test("replay: no mastery score ever leaves [0,1]", async () => {
@@ -91,7 +91,7 @@ test("replay INTX-001: constant-velocity misconception → probe, modest dip", a
   const { results } = await replay();
   const r = results.find((x) => x.interaction.id === "INTX-001");
   assert.ok(r);
-  assert.equal(r.out.errors[0].error_id, "conceptual");
+  assert.equal(r.out.errors[0].error_id, "ERR-CON-01");
   assert.ok(r.out.mastery_update.after < r.out.mastery_update.before);
   assert.ok(
     ["DIAGNOSTIC_QUESTION", "SOCRATIC_DIALOGUE"].includes(r.out.adaptive_plan.selected_action)

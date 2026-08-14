@@ -26,7 +26,8 @@ STUDENT STATE ──┘        (deterministic, auditable)                    (co
 
 | Module | Spec | Responsibility |
 |--------|------|----------------|
-| `mastery/mastery-engine.js` | Mastery Engine v1.0 | Multidimensional mastery (R/U/A/N/T/F/D), evidence-weighted update, separate uncertainty, retention projection, repetition/hint discounts, prerequisite attribution, immutable mastery events, §29 SLM state packet. Pure/no-I/O. |
+| `mastery/cloop-config-v8.js` + `data/knowledge-graph-v8/` | KG v8.0 workbook | Canonical v8 config: the 7 mastery stages + weights, 4 bands + 0.80 threshold, 8-tag error taxonomy, 6 remediation rules. Single source of truth, vendored from the workbook. |
+| `mastery/mastery-engine.js` | Mastery Engine v8 | 7-stage mastery (identification · explanation · representation · application · error_diagnosis · transfer · stability), `overall = Σ stage×weight`, mastered iff ≥0.80 + prerequisite gate. Evidence-weighted update, separate uncertainty, retention projection, repetition/hint discounts, gentle handling of execution slips, prerequisite attribution, immutable events, §29 SLM state packet. Pure/no-I/O. |
 | `pipeline/learning-pipeline.js` | Learning Intelligence Pipeline v1.0 | Stages D–I: error detection, misconception confidence (candidate vs promoted), prerequisite diagnosis, gap prioritisation, candidate-action generation + expected-utility selection. Produces the §21 output object. SLM is a single injected, non-fatal stage. |
 | `slm/cloop-slm.js` | Ontology §19 / Pipeline §18 | Constrained reasoning/communication layer. Builds guard-railed prompts from the state packet, maps actions to communication goals, guards output against answer leaks. Backed by gpt-4o via `openai.js`; `completion` injectable for offline tests. |
 | `seed/seed-loader.js` + `seed/replay.js` | Seed Dataset v1.0 | Loads the vendored pilot dataset (`data/seed/`) and replays every student interaction through the real engine. The specs' step 3–6, done without a DB. |
@@ -40,10 +41,20 @@ node services/demo-learning-loop.js   # one full learning-loop turn, offline
 node services/seed/replay.js          # replay the whole seed dataset through the engine
 ```
 
-The tests encode the specs' exact worked numbers — e.g. the mastery update
+The tests encode the specs' exact worked numbers — e.g. the per-stage update
 `0.62 → 0.6713` (positive transfer) and `0.62 → 0.5516` (conceptual error) —
-and the §17/§22 decision examples, so any drift from the specification fails
-loudly.
+the v8 stage set / bands / threshold, and the §17/§22 decision examples, so any
+drift from the specification fails loudly.
+
+### v8 refresh
+
+The engine, error taxonomy and remediation policy are driven by the
+`Cloop_Academic_Knowledge_Graph_v8.0` workbook, vendored under
+`data/knowledge-graph-v8/`. v8 replaced the earlier docx R/U/A/N/T/F/D
+dimensions with the 7-stage Cloop mastery state machine; the evidence-weighted
+update mechanics were retained and now apply per v8 stage. Legacy error names
+(e.g. `conceptual`, `vector`) still work — they normalise to v8 tags
+(`ERR-CON-01`, `ERR-REP-01`).
 
 ## Not yet built (needs decisions — these touch the live DB)
 

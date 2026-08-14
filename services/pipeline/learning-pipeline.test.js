@@ -15,14 +15,16 @@ test("Stage D: correct answer yields no error", () => {
   assert.equal(e.error_id, null);
 });
 
-test("Stage D: unknown → insufficient_evidence, not a misconception", () => {
+test("Stage D: unknown → insufficient evidence, not a misconception", () => {
   const e = P.detectError({ correctness: "unknown" });
-  assert.equal(e.error_id, "insufficient_evidence");
+  assert.equal(e.error_id, "ERR-INSUFFICIENT-EVIDENCE");
 });
 
-test("Stage D: explicit evaluator label wins", () => {
-  const e = P.detectError({ correctness: "incorrect_conceptual", explicitErrorType: "vector" });
-  assert.equal(e.error_id, "vector");
+test("Stage D: explicit v8 tag wins; legacy family names normalise to v8 tags", () => {
+  const a = P.detectError({ correctness: "incorrect_conceptual", explicitErrorType: "ERR-REP-01" });
+  assert.equal(a.error_id, "ERR-REP-01");
+  const b = P.detectError({ correctness: "incorrect_conceptual", explicitErrorType: "vector" });
+  assert.equal(b.error_id, "ERR-REP-01"); // legacy "vector" → representation tag
 });
 
 // ─── Stage E — misconception is a candidate, not a permanent label ──
@@ -229,12 +231,12 @@ test("pipeline: SLM failure is non-fatal; structured decision still returned", a
 
 function dimsAt(v) {
   return {
-    recall: v,
-    understanding: v,
+    identification: v,
+    explanation: v,
+    representation: v,
     application: v,
-    analysis: v,
+    error_diagnosis: v,
     transfer: v,
-    procedural_fluency: v,
-    retention: v,
+    stability: v,
   };
 }

@@ -13,15 +13,15 @@
 const prisma = require("../../lib/prisma");
 const { DIMENSIONS, weightedMastery, masteryBand } = require("./mastery-engine");
 
-// engine dimension key ↔ mastery_states column suffix
+// v8 engine stage key ↔ mastery_states column
 const DIM_COLUMN = {
-  recall: "recall_score",
-  understanding: "understanding_score",
+  identification: "identification_score",
+  explanation: "explanation_score",
+  representation: "representation_score",
   application: "application_score",
-  analysis: "analysis_score",
+  error_diagnosis: "error_diagnosis_score",
   transfer: "transfer_score",
-  procedural_fluency: "procedural_fluency_score",
-  retention: "retention_score",
+  stability: "stability_score",
 };
 
 /**
@@ -68,18 +68,20 @@ async function saveStateAndEvent(studentKey, conceptCode, state, event) {
   const dims = state.dimensions || {};
   const overall = state.overall_mastery ?? weightedMastery(dims);
   const columns = {
-    recall_score: dims.recall ?? 0,
-    understanding_score: dims.understanding ?? 0,
+    identification_score: dims.identification ?? 0,
+    explanation_score: dims.explanation ?? 0,
+    representation_score: dims.representation ?? 0,
     application_score: dims.application ?? 0,
-    analysis_score: dims.analysis ?? 0,
+    error_diagnosis_score: dims.error_diagnosis ?? 0,
     transfer_score: dims.transfer ?? 0,
-    procedural_fluency_score: dims.procedural_fluency ?? 0,
-    retention_score: dims.retention ?? 0,
+    stability_score: dims.stability ?? 0,
     overall_mastery: overall,
+    mastery_level: masteryBand(overall).band,
     uncertainty: state.uncertainty ?? 0.4,
     evidence_count: state.evidence_count ?? 0,
+    prerequisite_gate_open: Boolean(state.prerequisite_gate_open),
     last_assessed_at: state.last_assessed_at ? new Date(state.last_assessed_at) : new Date(),
-    model_version: state.model_version || "mastery-v1.0",
+    model_version: state.model_version || "mastery-v8",
   };
 
   const ops = [

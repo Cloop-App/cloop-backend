@@ -24,22 +24,21 @@ const {
   buildSlmStatePacket,
   weightedMastery,
   masteryBand,
+  normaliseErrorTag,
 } = require("../mastery/mastery-engine");
+const cfg = require("../mastery/cloop-config-v8");
 
 // ─── Stage D — Error detection (rule-based v1 baseline) ──────────
-// Maps observable evidence to an error category. This is the transparent
-// baseline the spec asks for before any learned classifier; the SLM may
-// later propose categories but the taxonomy here stays authoritative.
-const ERROR_TAXONOMY = {
-  calculation: "Correct method but arithmetic/sign/transcription slip.",
-  algebraic: "Invalid transformation, expansion or simplification.",
-  conceptual: "Incorrect understanding of the underlying concept.",
-  diagram: "Incorrect/omitted/extra representation element.",
-  vector: "Incorrect component, sign or direction.",
-  interpretation: "Misread the question or conditions.",
-  prerequisite_gap: "Target concept depends on a weak upstream concept.",
-  insufficient_evidence: "Response too incomplete to diagnose reliably.",
-};
+// Uses the v8 error taxonomy (Cloop_Error_Taxonomy_v1) as the authoritative
+// tag set. This is the transparent baseline the spec asks for before any
+// learned classifier; the SLM may propose tags but this taxonomy stays
+// authoritative.
+const ERROR_TAXONOMY = Object.fromEntries(
+  cfg.ERROR_TAXONOMY.map((t) => [t.tag, t.definition])
+);
+// A synthetic tag for the "not enough signal to diagnose" case.
+const INSUFFICIENT_EVIDENCE = "ERR-INSUFFICIENT-EVIDENCE";
+ERROR_TAXONOMY[INSUFFICIENT_EVIDENCE] = "Response too incomplete to diagnose reliably.";
 
 /**
  * Stage D. Classify the observable failure. Prefers an explicit label from a
@@ -58,16 +57,19 @@ function detectError(ev) {
   }
   if (ev.correctness === "unknown") {
     return {
-      error_id: "insufficient_evidence",
+      error_id: INSUFFICIENT_EVIDENCE,
       confidence: 0.5,
-      description: ERROR_TAXONOMY.insufficient_evidence,
+      description: ERROR_TAXONOMY[INSUFFICIENT_EVIDENCE],
     };
   }
-  // Explicit label from a stronger evaluator wins.
-  const label =
-    ev.explicitErrorType && ERROR_TAXONOMY[ev.explicitErrorType]
+  // Explicit label from a stronger evaluator wins. Accept a v8 tag directly or
+  // a legacy family name (normalised to a v8 tag).
+  const explicit = ev.explicitErrorType
+    ? ERROR_TAXONOMY[ev.explicitErrorType]
       ? ev.explicitErrorType
-      : inferErrorType(ev);
+      : normaliseErrorTag(ev.explicitErrorType)
+    : null;
+  const label = explicit || inferErrorType(ev);
   return {
     error_id: label,
     confidence: ev.evaluatorConfidence ?? 0.7,
@@ -75,12 +77,12 @@ function detectError(ev) {
   };
 }
 
+// Rule-based baseline, emitting v8 error tags.
 function inferErrorType(ev) {
-  if (ev.prerequisiteWeak) return "prerequisite_gap";
-  if (ev.misreadQuestion) return "interpretation";
-  if (ev.arithmeticOnly || ev.correctness === "incorrect_valid_method") return "calculation";
-  if (ev.correctness === "incorrect_conceptual") return "conceptual";
-  return "conceptual";
+  if (ev.prerequisiteWeak) return "ERR-PREREQ-01";
+  if (ev.misreadQuestion) return "ERR-READ-01";
+  if (ev.arithmeticOnly || ev.correctness === "incorrect_valid_method") return "ERR-CALC-01";
+  return "ERR-CON-01"; // conceptual misunderstanding
 }
 
 // ─── Stage E — Misconception inference ───────────────────────────
@@ -346,7 +348,7 @@ async function runPipeline(input, deps = {}) {
   const { state: newState, event } = updateMastery(masteryState, {
     outcome: mapCorrectness(evaluation.correctness),
     partialCredit: input.errorSignals?.partialCredit,
-    errorType: error.error_id === "insufficient_evidence" ? null : error.error_id,
+    errorType: error.error_id === INSUFFICIENT_EVIDENCE ? null : error.error_id,
     misconceptionId: input.misconceptionFactors?.misconceptionId,
     diagnosisConfidence: mis.confidence,
     conceptRelevance: primaryConcept.weight ?? 1,
@@ -439,6 +441,7 @@ async function runPipeline(input, deps = {}) {
     adaptive_plan: {
       selected_action: plan.selected?.type ?? null,
       reason: plan.selected?.reason ?? null,
+      remediation_rule: remediationRuleFor(plan.selected?.type, error.error_id),
       candidates: plan.candidates,
       confidence: clamp01(1 - newState.uncertainty),
     },
@@ -448,6 +451,26 @@ async function runPipeline(input, deps = {}) {
     _mastery_state: newState,
     _mastery_event: event,
   };
+}
+
+// Map the selected action / error tag to the v8 Remediation_Policy rule that
+// governs it, so the decision cites the policy it is executing.
+const ACTION_REMEDIATION = {
+  PREREQUISITE_REMEDIATION: "Prerequisite remediation",
+  MICRO_EXPLANATION: "Concept remediation",
+  VISUAL_REPRESENTATION: "Concept remediation",
+  COUNTEREXAMPLE: "Error remediation",
+  WORKED_EXAMPLE: "Procedure remediation",
+  GUIDED_PRACTICE: "Procedure remediation",
+  TRANSFER_PROBLEM: "Transfer remediation",
+  RETRIEVAL_PRACTICE: "Retention remediation",
+};
+function remediationRuleFor(action, errorTag) {
+  let trigger = ACTION_REMEDIATION[action];
+  if (!trigger && errorTag === "ERR-PREREQ-01") trigger = "Prerequisite remediation";
+  if (!trigger && errorTag === "ERR-CON-01") trigger = "Error remediation";
+  const rule = trigger ? cfg.REMEDIATION_BY_TRIGGER[trigger] : null;
+  return rule ? { rule_id: rule.rule_id, trigger: rule.trigger, action: rule.action } : null;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────

@@ -13,18 +13,19 @@
 
 const fs = require("fs");
 const path = require("path");
+const { DIMENSIONS } = require("../mastery/mastery-engine");
 
 const SEED_DIR = path.join(__dirname, "..", "..", "data", "seed");
 
-// Seed error `category` → mastery-engine / pipeline error type.
+// Seed error `category` → v8 error taxonomy tag (Cloop_Error_Taxonomy_v1).
 const CATEGORY_TO_ERROR_TYPE = {
-  CONCEPTUAL: "conceptual",
-  ALGEBRAIC: "algebraic",
-  VECTOR: "vector",
-  DIAGRAM: "diagram",
-  CALCULATION: "calculation",
-  INTERPRETATION: "interpretation",
-  PREREQUISITE_GAP: "prerequisite_gap",
+  CONCEPTUAL: "ERR-CON-01",
+  ALGEBRAIC: "ERR-PROC-01",
+  VECTOR: "ERR-REP-01",
+  DIAGRAM: "ERR-REP-01",
+  CALCULATION: "ERR-CALC-01",
+  INTERPRETATION: "ERR-READ-01",
+  PREREQUISITE_GAP: "ERR-PREREQ-01",
 };
 
 // Question difficulty is a 1–5 controlled scale (ontology §9.2). Normalise to
@@ -101,10 +102,9 @@ function groupBy(arr, key) {
 function masteryStateFor(index, student, conceptId) {
   const seed = index.mastery.get(`${student}|${conceptId}`);
   const overall = seed?.overall_mastery ?? 0.5;
-  const dims = ["recall", "understanding", "application", "analysis", "transfer", "procedural_fluency", "retention"].reduce(
-    (a, d) => ((a[d] = overall), a),
-    {}
-  );
+  // Seed stores only an overall score; initialise every v8 stage to it (the
+  // weighted sum of equal stages equals the overall — a neutral start point).
+  const dims = DIMENSIONS.reduce((a, d) => ((a[d] = overall), a), {});
   return {
     student_id: student,
     concept_id: conceptId,

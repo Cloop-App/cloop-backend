@@ -370,18 +370,21 @@ model MasteryState {
   id                     String   @id @default(uuid())
   student_key            String   // pseudonymous
   concept_code           String
-  recall_score           Float    @default(0)
-  understanding_score    Float    @default(0)
+  // v8 mastery stages (Cloop_Mastery_Engine_v1)
+  identification_score   Float    @default(0)
+  explanation_score      Float    @default(0)
+  representation_score   Float    @default(0)
   application_score      Float    @default(0)
-  analysis_score         Float    @default(0)
+  error_diagnosis_score  Float    @default(0)
   transfer_score         Float    @default(0)
-  procedural_fluency_score Float  @default(0)
-  retention_score        Float    @default(0)
+  stability_score        Float    @default(0)
   overall_mastery        Float    @default(0)
+  mastery_level          String   @default("Emerging") // Emerging|Developing|Proficient|Mastered
   uncertainty            Float    @default(0.4)
   evidence_count         Int      @default(0)
+  prerequisite_gate_open Boolean  @default(false)
   last_assessed_at       DateTime?
-  model_version          String   @default("mastery-v1.0")
+  model_version          String   @default("mastery-v8")
   updated_at             DateTime @updatedAt
 
   @@unique([student_key, concept_code])
@@ -400,7 +403,7 @@ model MasteryEvent {
   evidence          Json?
   diagnosis         Json?
   update_reason     String?
-  model_version     String   @default("mastery-v1.0")
+  model_version     String   @default("mastery-v8")
   created_at        DateTime @default(now())
 
   @@index([student_key, concept_code, created_at])

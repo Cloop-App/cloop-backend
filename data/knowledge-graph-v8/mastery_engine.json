@@ -1,0 +1,93 @@
+{
+  "engine_id": "Cloop_Mastery_Engine_v1",
+  "formula": "sum(stage_score * weight)",
+  "mastery_threshold": 0.8,
+  "threshold_rule": ">= 0.80 AND no critical prerequisite unresolved",
+  "bands": [
+    {
+      "min": 0.0,
+      "max": 0.39,
+      "level": "Emerging"
+    },
+    {
+      "min": 0.4,
+      "max": 0.59,
+      "level": "Developing"
+    },
+    {
+      "min": 0.6,
+      "max": 0.79,
+      "level": "Proficient"
+    },
+    {
+      "min": 0.8,
+      "max": 1.0,
+      "level": "Mastered"
+    }
+  ],
+  "stages": [
+    {
+      "engine_id": "CLOOP-ME-01",
+      "key": "identification",
+      "stage": "Concept Identification",
+      "tests": "Recognise the concept, terminology, symbols and boundaries.",
+      "evidence_type": "Recall/Recognition",
+      "weight": 0.1,
+      "pass_evidence": "Correct identification in novel wording."
+    },
+    {
+      "engine_id": "CLOOP-ME-02",
+      "key": "explanation",
+      "stage": "Concept Explanation",
+      "tests": "Explain the concept in own words and connect its parts.",
+      "evidence_type": "Understanding",
+      "weight": 0.15,
+      "pass_evidence": "Accurate explanation without copying prompt language."
+    },
+    {
+      "engine_id": "CLOOP-ME-03",
+      "key": "representation",
+      "stage": "Representation",
+      "tests": "Translate between verbal, symbolic, graphical, diagrammatic or structural representations.",
+      "evidence_type": "Representation",
+      "weight": 0.15,
+      "pass_evidence": "Consistent translation across representations."
+    },
+    {
+      "engine_id": "CLOOP-ME-04",
+      "key": "application",
+      "stage": "Standard Application",
+      "tests": "Apply the concept to a standard curriculum-level problem.",
+      "evidence_type": "Application",
+      "weight": 0.2,
+      "pass_evidence": "Correct method and answer with minimal prompting."
+    },
+    {
+      "engine_id": "CLOOP-ME-05",
+      "key": "error_diagnosis",
+      "stage": "Error Diagnosis",
+      "tests": "Identify why a solution/claim is wrong and tag the error.",
+      "evidence_type": "Metacognition/Error correction",
+      "weight": 0.15,
+      "pass_evidence": "Correct error category + corrected reasoning."
+    },
+    {
+      "engine_id": "CLOOP-ME-06",
+      "key": "transfer",
+      "stage": "Transfer",
+      "tests": "Apply the concept in a novel, multi-step or cross-concept problem.",
+      "evidence_type": "Transfer",
+      "weight": 0.15,
+      "pass_evidence": "Correct solution under changed surface conditions."
+    },
+    {
+      "engine_id": "CLOOP-ME-07",
+      "key": "stability",
+      "stage": "Mastery Stability",
+      "tests": "Maintain performance across spaced, varied attempts.",
+      "evidence_type": "Retention",
+      "weight": 0.1,
+      "pass_evidence": "Stable performance across later attempts."
+    }
+  ]
+}

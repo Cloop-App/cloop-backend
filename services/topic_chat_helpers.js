@@ -64,12 +64,19 @@ You MUST respond with a valid JSON object in this format:
 
 /**
  * Generate an initial greeting for a topic chat.
+ *
+ * Returns null by design. The tutor opens every session with a question
+ * (the Hook phase), so a canned greeting here would announce the topic and
+ * ask permission to start — both of which the session arc forbids, and
+ * neither of which the system prompt can suppress once this text is
+ * persisted ahead of the model's first turn.
+ *
  * @param {string} topicTitle
  * @param {string} userName
- * @returns {string}
+ * @returns {string | null}
  */
 function generateGreeting(topicTitle, userName) {
-  return `Hi ${userName}! 👋 I'm Cloop, your AI tutor. Today we're going to learn about **${topicTitle}**. Let's get started!\n\nAre you ready for the first question?`;
+  return null;
 }
 
 module.exports = { buildSystemPrompt, generateGreeting };

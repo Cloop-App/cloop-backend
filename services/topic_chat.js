@@ -28,20 +28,25 @@ async function loadTopicChat(topicId, userId) {
 
   const user = await prisma.user.findUnique({ where: { user_id: userId } });
 
+  // The tutor opens with its own Hook question, so a canned greeting is
+  // normally suppressed. generateGreeting returning null leaves the chat
+  // empty until the model's first turn.
   let initialGreeting = null;
   if (messages.length === 0) {
     const greetingText = generateGreeting(topic.title, user?.name || "Student");
-    const greeting = await prisma.topicChat.create({
-      data: {
-        topic_id: topicId,
-        user_id: userId,
-        sender: "ai",
-        message: greetingText,
-        message_type: "text",
-      },
-    });
-    messages.push(greeting);
-    initialGreeting = greetingText;
+    if (greetingText) {
+      const greeting = await prisma.topicChat.create({
+        data: {
+          topic_id: topicId,
+          user_id: userId,
+          sender: "ai",
+          message: greetingText,
+          message_type: "text",
+        },
+      });
+      messages.push(greeting);
+      initialGreeting = greetingText;
+    }
   }
 
   // Compute goal completion status from messages

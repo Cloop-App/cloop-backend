@@ -1,6 +1,7 @@
 const prisma = require("../lib/prisma");
 const { chatCompletion } = require("./openai");
 const { buildSystemPrompt, generateGreeting } = require("./topic_chat_helpers");
+const { parseTutorResponse } = require("./topic_chat_response");
 const { calculateSessionMetrics } = require("./topic_chat_metrics");
 const { trackGoalProgress } = require("./learning_turns_tracker");
 
@@ -111,25 +112,15 @@ async function processMessage(topicId, userId, userMessage, sessionTimeSeconds) 
     { role: "user", content: userMessage },
   ];
 
-  // Call OpenAI
-  const aiResponseRaw = await chatCompletion(openaiMessages, { jsonMode: true });
-  let aiResponse;
-  try {
-    aiResponse = JSON.parse(aiResponseRaw);
-  } catch {
-    // If AI didn't return valid JSON, wrap it
-    aiResponse = {
-      ai_messages: [{ message_type: "text", message: aiResponseRaw }],
-      feedback: { is_correct: null, bubble_color: "default" },
-      user_correction: null,
-      goals_update: [],
-      session_summary: null,
-    };
-  }
+  // Call the model, and retry once if the turn comes back unusable. A turn
+  // with no renderable message must never be persisted: it reaches the
+  // student as a blank chat bubble.
+  const aiResponse = await requestTutorTurn(openaiMessages);
 
-  // Persist AI messages
+  // Persist AI messages. parseTutorResponse has already dropped blanks and
+  // normalised the message key, so anything here is safe to render.
   const aiMessages = [];
-  for (const msg of aiResponse.ai_messages || []) {
+  for (const msg of aiResponse.ai_messages) {
     const saved = await prisma.topicChat.create({
       data: {
         topic_id: topicId,
@@ -209,19 +200,10 @@ async function processOption(topicId, userId, chatId, option) {
     },
   ];
 
-  const aiResponseRaw = await chatCompletion(openaiMessages, { jsonMode: true });
-  let aiResponse;
-  try {
-    aiResponse = JSON.parse(aiResponseRaw);
-  } catch {
-    aiResponse = {
-      ai_messages: [{ message_type: "text", message: aiResponseRaw }],
-      feedback: { is_correct: null, bubble_color: "default" },
-    };
-  }
+  const aiResponse = await requestTutorTurn(openaiMessages);
 
   const aiMessages = [];
-  for (const msg of aiResponse.ai_messages || []) {
+  for (const msg of aiResponse.ai_messages) {
     const saved = await prisma.topicChat.create({
       data: {
         topic_id: topicId,
@@ -238,6 +220,58 @@ async function processOption(topicId, userId, chatId, option) {
     aiMessages,
     feedback: aiResponse.feedback || { is_correct: null, bubble_color: "default" },
   };
+}
+
+/**
+ * Ask the model for one tutor turn, retrying once when the reply is not
+ * usable JSON or carries nothing renderable.
+ *
+ * A blank chat bubble is always a bug, never a legitimate turn, so the retry
+ * is not optional: without it a single malformed reply is shown to the
+ * student as an empty message.
+ *
+ * @param {Array<{role: string, content: string}>} openaiMessages
+ * @returns {Promise<object>} a normalised tutor turn
+ */
+async function requestTutorTurn(openaiMessages) {
+  const REPAIR =
+    "Your last reply was not usable. Reply with ONE valid json object and " +
+    "nothing else: no prose, no markdown, no code fences. It must contain a " +
+    'non-empty "ai_messages" array.';
+
+  let last = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const messages =
+      attempt === 1
+        ? openaiMessages
+        : [...openaiMessages, { role: "system", content: REPAIR }];
+
+    const raw = await chatCompletion(messages, { jsonMode: true });
+    const result = parseTutorResponse(raw);
+    last = result;
+
+    if (result.note) {
+      console.warn(`[topic_chat] attempt ${attempt}: ${result.note}`);
+    }
+    if (result.parseOk && result.hasMessages) return result.response;
+    console.warn(
+      `[topic_chat] attempt ${attempt} unusable ` +
+        `(parseOk=${result.parseOk}, messages=${result.response.ai_messages.length})`
+    );
+  }
+
+  // Both attempts failed. Return whatever text we salvaged rather than an
+  // empty turn; if even that is empty, say something honest instead of
+  // rendering nothing.
+  if (!last.hasMessages) {
+    last.response.ai_messages = [
+      {
+        message_type: "text",
+        message: "Sorry, that did not come through. Could you send that again?",
+      },
+    ];
+  }
+  return last.response;
 }
 
 module.exports = { loadTopicChat, processMessage, processOption };

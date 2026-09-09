@@ -1,5 +1,5 @@
 const { evaluateStudentTurn, resolveOptionAnswer } = require('./evaluator');
-const { advance, instructionFor, initialState, questionTypeFor, isScored, attachmentsFor, normalizeIntent } = require('./state');
+const { advance, instructionFor, initialState, questionTypeFor, isScored, attachmentsFor, normalizeIntent, baseInstruction, stepsFrom } = require('./state');
 const { generateTutorResponse } = require('./tutor-generator');
 const { enforce } = require('./validate');
 const { getCachedDiagram } = require('./diagram-cache');
@@ -97,6 +97,11 @@ async function processTutorTurn({
   // CRITICAL INVARIANT: instructionFor is called strictly on POST-ADVANCE state
   const stateInstruction = instructionFor(nextState, { intent });
 
+  // How far down the escalation ladder this turn had to go. Derived from the
+  // same pair the ladder itself walks, so it cannot drift from what was
+  // actually issued.
+  const escalationStep = stepsFrom(baseInstruction(nextState, intent), stateInstruction);
+
   // Remember it, so the next turn cannot issue the same directive again.
   nextState.lastInstruction = stateInstruction;
 
@@ -181,9 +186,12 @@ async function processTutorTurn({
     evaluatorResult,
     intent,
     answeredPhase,
+    answeredGoalIndex: currentGoalIndex,
     gradedThisTurn,
     nextState,
     stateInstruction,
+    escalationStep,
+    lastQuestionText,
     questionType,
     attachments,
     masteryReport,

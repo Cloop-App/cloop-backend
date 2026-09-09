@@ -399,6 +399,25 @@ function instructionFor(state, event = {}) {
   return next;
 }
 
+/**
+ * How many rungs down the ladder `final` sits from `base`.
+ *
+ * Recorded per turn as `escalation_step`, so a session can be read back and
+ * asked how hard the tutor had to work: a goal answered at step 0 throughout
+ * was understood, one that repeatedly reached step 2 or 3 was not. Returns 0
+ * when the two are equal and when no path connects them, since an
+ * unrecognisable pair is not evidence of escalation.
+ */
+function stepsFrom(base, final) {
+  if (base === final) return 0;
+  let cur = base;
+  for (let i = 1; i <= LADDER_DEPTH + 1; i++) {
+    cur = ESCALATION[cur] || "give_starter";
+    if (cur === final) return i;
+  }
+  return 0;
+}
+
 /** The band a proportion falls into. */
 function bandFor(accuracy) {
   return (BANDS.find((b) => accuracy >= b.min) || BANDS[BANDS.length - 1]).label;
@@ -411,6 +430,7 @@ module.exports = {
   STUCK_LIMIT,
   LADDER_DEPTH,
   escalate,
+  stepsFrom,
   normalizeIntent,
   baseInstruction,
   OPEN_PER_GOAL,

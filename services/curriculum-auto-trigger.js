@@ -1,33 +1,20 @@
 const prisma = require("../lib/prisma");
+const { syncEnrollments } = require("./curriculum");
 
 /**
- * Auto-trigger content generation for all of a user's subjects
- * that don't already have a generation job.
- * Called after profile update (e.g., when subjects are selected during onboarding).
+ * Enrol a user in the subjects they have chosen and queue any curriculum that
+ * has not been generated yet.
  *
- * @param {string} userId
+ * Called after onboarding and whenever the subject list changes.
+ *
+ * @param {number} userId
+ * @returns {Promise<Array>} the global subjects the user is enrolled in
  */
 async function autoTriggerContentGeneration(userId) {
-  const userSubjects = await prisma.userSubject.findMany({
-    where: { user_id: userId },
-    select: { subject_id: true },
-  });
+  const user = await prisma.users.findUnique({ where: { user_id: userId } });
+  if (!user) return [];
 
-  for (const { subject_id } of userSubjects) {
-    const existing = await prisma.contentGenerationJob.findUnique({
-      where: { user_id_subject_id: { user_id: userId, subject_id } },
-    });
-
-    if (!existing) {
-      await prisma.contentGenerationJob.create({
-        data: {
-          user_id: userId,
-          subject_id,
-          status: "pending",
-        },
-      });
-    }
-  }
+  return syncEnrollments(user);
 }
 
 module.exports = { autoTriggerContentGeneration };

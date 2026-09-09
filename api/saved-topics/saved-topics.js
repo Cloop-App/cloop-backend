@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
   try {
     const userId = req.user.user_id;
 
-    const savedTopics = await prisma.savedTopic.findMany({
+    const savedTopics = await prisma.saved_topics.findMany({
       where: { user_id: userId },
       include: {
         topic: {
@@ -64,7 +64,7 @@ router.post("/save", async (req, res) => {
       return res.status(400).json({ error: "topicId is required." });
     }
 
-    const saved = await prisma.savedTopic.create({
+    const saved = await prisma.saved_topics.create({
       data: { user_id: userId, topic_id: topicId },
     });
 
@@ -92,7 +92,7 @@ router.delete("/unsave", async (req, res) => {
       return res.status(400).json({ error: "topicId is required." });
     }
 
-    await prisma.savedTopic.deleteMany({
+    await prisma.saved_topics.deleteMany({
       where: { user_id: userId, topic_id: topicId },
     });
 

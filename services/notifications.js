@@ -2,17 +2,17 @@ const prisma = require("../lib/prisma");
 
 /**
  * Create an in-app notification for a user.
- * @param {string} userId
+ * @param {number} userId
  * @param {string} title
- * @param {string} body
+ * @param {string} message
  * @param {string} [type='info'] - 'info' | 'welcome' | 'profile' | 'achievement'
  */
-async function createNotification(userId, title, body, type = "info") {
-  return prisma.notification.create({
+async function createNotification(userId, title, message, type = "info") {
+  return prisma.notifications.create({
     data: {
       user_id: userId,
       title,
-      body,
+      message,
       type,
     },
   });
@@ -21,7 +21,7 @@ async function createNotification(userId, title, body, type = "info") {
 /**
  * Send welcome-back notifications on login.
  * Fires asynchronously — caller does not await.
- * @param {string} userId
+ * @param {number} userId
  * @param {string} userName
  */
 async function sendLoginNotifications(userId, userName) {

@@ -1,0 +1,50 @@
+[
+  {
+    "tag": "ERR-CON-01",
+    "name": "Concept misunderstanding",
+    "definition": "Learner's mental model of the concept is incorrect.",
+    "family": "Misconception"
+  },
+  {
+    "tag": "ERR-PREREQ-01",
+    "name": "Prerequisite gap",
+    "definition": "Required earlier concept is not mastered.",
+    "family": "Learning gap"
+  },
+  {
+    "tag": "ERR-PROC-01",
+    "name": "Procedure/algorithm error",
+    "definition": "Correct concept, incorrect execution sequence.",
+    "family": "Procedural"
+  },
+  {
+    "tag": "ERR-REP-01",
+    "name": "Representation error",
+    "definition": "Fails to translate between forms.",
+    "family": "Representation"
+  },
+  {
+    "tag": "ERR-CALC-01",
+    "name": "Calculation error",
+    "definition": "Arithmetic/algebraic manipulation causes failure.",
+    "family": "Execution"
+  },
+  {
+    "tag": "ERR-READ-01",
+    "name": "Question interpretation",
+    "definition": "Misreads what is being asked or conditions.",
+    "family": "Comprehension"
+  },
+  {
+    "tag": "ERR-TRANSFER-01",
+    "name": "Transfer failure",
+    "definition": "Can solve familiar form but not novel form.",
+    "family": "Transfer"
+  },
+  {
+    "tag": "ERR-CARELESS-01",
+    "name": "Attention error",
+    "definition": "Transient slip despite demonstrated concept mastery.",
+    "family": "Execution"
+  }
+]

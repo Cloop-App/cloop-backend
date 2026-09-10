@@ -1,0 +1,37 @@
+[
+  {
+    "student": "STU-SYN-001",
+    "concept": "PHY-KIN-001",
+    "overall_mastery": 0.47,
+    "uncertainty": 0.19,
+    "evidence_count": 4
+  },
+  {
+    "student": "STU-SYN-001",
+    "concept": "PHY-MEC-001",
+    "overall_mastery": 0.62,
+    "uncertainty": 0.14,
+    "evidence_count": 5
+  },
+  {
+    "student": "STU-SYN-001",
+    "concept": "PHY-VEC-001",
+    "overall_mastery": 0.47,
+    "uncertainty": 0.2,
+    "evidence_count": 3
+  },
+  {
+    "student": "STU-SYN-002",
+    "concept": "MATH-ALG-003",
+    "overall_mastery": 0.31,
+    "uncertainty": 0.16,
+    "evidence_count": 3
+  },
+  {
+    "student": "STU-SYN-002",
+    "concept": "MATH-TRIG-001",
+    "overall_mastery": 0.41,
+    "uncertainty": 0.18,
+    "evidence_count": 2
+  }
+]

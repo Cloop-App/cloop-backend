@@ -374,6 +374,11 @@ model tutor_sessions {
   user_id      Int
   topic_id     Int
   state        Json
+  /// The session's first chat message, used as its stable id in
+  /// chat_goal_progress — whose unique key is (chat_id, goal_id, user_id).
+  /// Keying that on the current turn's message instead is what produced the
+  /// pilot's 2,209 progress rows across 137 goals: a new row per message.
+  anchor_chat_id Int?
   is_active    Boolean   @default(true)
   ended_reason String?   @db.VarChar(30)
   started_at   DateTime? @default(now()) @db.Timestamp(6)
@@ -407,6 +412,8 @@ model admin_chat {
   chat_goal_progress chat_goal_progress[] @relation("AdminChatToGoalProgress")
   chat_process       chat_process[]       @relation("AdminChatToProcess")
   learning_turns     learning_turns[]
+
+  @@index([session_id], map: "idx_admin_chat_session")
 }
 
 model chat_process {

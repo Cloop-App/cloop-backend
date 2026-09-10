@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "tutor_sessions" (
     "user_id"      INTEGER      NOT NULL,
     "topic_id"     INTEGER      NOT NULL,
     "state"        JSONB        NOT NULL,
+    "anchor_chat_id" INTEGER,
     "is_active"    BOOLEAN      NOT NULL DEFAULT true,
     "ended_reason" VARCHAR(30),
     "started_at"   TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,

@@ -69,9 +69,19 @@ const prismaStub = {
   },
   chat_goal_progress: {
     findMany: async () => [],
-    upsert: async (args) => {
-      writes.goal_progress.push(args);
-      return args.create;
+    // Keyed like the real unique constraint (chat_id, goal_id, user_id). A
+    // stub that just appended could not see the bug this table actually had:
+    // keying on the current message makes every turn a new row.
+    upsert: async ({ where, create, update }) => {
+      const k = Object.values(where.chat_id_goal_id_user_id).join("|");
+      const existing = writes.goal_progress.find((r) => r.key === k);
+      if (existing) {
+        Object.assign(existing.row, update);
+        return existing.row;
+      }
+      const row = { ...create };
+      writes.goal_progress.push({ key: k, row });
+      return row;
     },
   },
   user_topic_reports: {
@@ -208,9 +218,34 @@ test("goal progress is written once per goal, not once per message", async () =>
 
   // Four turns, but only the DIALOGUE one was assessed.
   assert.equal(writes.goal_progress.length, 1, "unscored turns must not touch the tally");
-  assert.equal(writes.goal_progress[0].create.goal_id, 11);
-  assert.equal(writes.goal_progress[0].create.num_questions, 1);
-  assert.equal(writes.goal_progress[0].create.num_correct, 1);
+  assert.equal(writes.goal_progress[0].row.goal_id, 11);
+  assert.equal(writes.goal_progress[0].row.num_questions, 1);
+  assert.equal(writes.goal_progress[0].row.num_correct, 1);
+});
+
+test("a second answer on the same goal updates its row rather than adding one", async () => {
+  reset();
+  await runTurns(6); // PROBE, THEORY, OBJECTIVES, then several DIALOGUE turns
+
+  assert.equal(
+    writes.goal_progress.length,
+    1,
+    "keying progress on the current message is what gave the pilot 2,209 rows for 137 goals"
+  );
+
+  const { row } = writes.goal_progress[0];
+  assert.equal(row.goal_id, 11);
+  assert.ok(row.num_questions >= 2, "the tally accumulates across turns");
+  assert.equal(row.num_questions, row.num_correct, "all answers were correct in this run");
+});
+
+test("goal progress is anchored to the session, not the turn", async () => {
+  reset();
+  await runTurns(6);
+
+  const anchor = writes.admin_chat.find((m) => m.sender === "user").id;
+  const [chatId] = writes.goal_progress[0].key.split("|");
+  assert.equal(Number(chatId), anchor, "the session's first message is its stable id");
 });
 
 test("session state is persisted so a restart cannot reset the student to PROBE", async () => {

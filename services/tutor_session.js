@@ -153,6 +153,15 @@ async function processMessage(topicId, userId, studentMessage) {
     },
   });
 
+  // The first message becomes the session's stable id for goal progress.
+  const anchorChatId = session.anchor_chat_id ?? savedUserMessage.id;
+  if (session.anchor_chat_id == null) {
+    await prisma.tutor_sessions.update({
+      where: { id: session.id },
+      data: { anchor_chat_id: anchorChatId },
+    });
+  }
+
   const turn = await processTutorTurn({
     studentMessage,
     topic: topicContext(topic),
@@ -196,6 +205,7 @@ async function processMessage(topicId, userId, studentMessage) {
   await recordTurn({
     userId,
     chatId: savedUserMessage.id,
+    goalChatId: anchorChatId,
     turn,
     prevState: session.state,
     topic: topicContext(topic),

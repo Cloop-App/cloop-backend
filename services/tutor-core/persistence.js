@@ -195,10 +195,18 @@ async function recordTurn(params) {
  * Only assessed turns move it. An acknowledgement or an "I don't know" is not
  * a question answered, and counting it as one inflates the denominator that
  * every completion figure is drawn from.
+ *
+ * Keyed on the session's anchor message, not this turn's. The table's unique
+ * key is (chat_id, goal_id, user_id), so keying it on the current message
+ * makes every turn a fresh row — which is how the pilot ended up with 2,209
+ * progress rows describing 137 goals, and why goal completion read as 41%
+ * when on the real grain it was 67%.
  */
 async function upsertGoalProgress(params, record) {
-  const { turn, goals = [] } = params;
+  const { turn, goals = [], goalChatId } = params;
   if (!record.goal_id || !turn.gradedThisTurn) return;
+
+  const chatId = goalChatId ?? record.chat_id;
 
   const tally = turn.nextState.perGoal[turn.answeredGoalIndex];
   if (!tally) return;
@@ -212,13 +220,13 @@ async function upsertGoalProgress(params, record) {
   await prisma.chat_goal_progress.upsert({
     where: {
       chat_id_goal_id_user_id: {
-        chat_id: record.chat_id,
+        chat_id: chatId,
         goal_id: record.goal_id,
         user_id: record.user_id,
       },
     },
     create: {
-      chat_id: record.chat_id,
+      chat_id: chatId,
       goal_id: record.goal_id,
       user_id: record.user_id,
       num_questions: tally.total,

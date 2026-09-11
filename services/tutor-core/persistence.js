@@ -140,13 +140,110 @@ function buildTurnRecord({
     topic_title: topic.title || null,
     subject_name: topic.subject_name || null,
     question_type: questionTypeFor(answeredPhase),
+  };
+}
 
-    // The instrumentation. Without these five a session cannot be replayed.
-    phase: answeredPhase,
-    directive: turn.stateInstruction,
+/**
+ * The pipeline's audit record for this turn.
+ *
+ * Everything the evaluator decided and the state machine did, so a session can
+ * be replayed and questioned afterwards. The pilot had none of it — not
+ * because anyone forgot to log, but because the pipeline that produces these
+ * values was never wired up.
+ */
+function buildTurnLog({ userId, chatId, turn, topic = {}, goals = [], studentMessage }) {
+  const { evaluatorResult, gradedThisTurn, nextState, answeredGoalIndex, answeredPhase } = turn;
+
+  const goal = goals[answeredGoalIndex] || null;
+  const tally = nextState.perGoal[answeredGoalIndex] || null;
+  const bubbles = Array.isArray(turn.messages) ? turn.messages : [];
+  const preview = bubbles.map((b) => b.message).filter(Boolean).join(" ").slice(0, 500);
+  const report = turn.masteryReport;
+
+  return {
+    user_id: userId,
+    topic_id: topic.id,
+    chapter_id: topic.chapter_id ?? null,
+    subject_id: topic.subject_id ?? null,
+    goal_id: goal?.id ?? null,
+    chat_id: chatId,
+
     intent: turn.intent,
+    is_correct: gradedThisTurn ? Boolean(evaluatorResult.is_correct) : null,
+    score_percent: gradedThisTurn ? evaluatorResult.score_percent : null,
+    error_type: evaluatorResult.error_type || null,
+    diff_html: evaluatorResult.diff_html || null,
+    complete_answer: evaluatorResult.complete_answer || null,
+    suggested_action: evaluatorResult.suggested_action || null,
+    evaluator_reasoning: evaluatorResult.reasoning || null,
+
+    phase: nextState.phase,
+    answered_in_phase: answeredPhase,
+    state_instruction: turn.stateInstruction,
+    question_type: questionTypeFor(answeredPhase),
+    goal_index: answeredGoalIndex,
+    goal_total: nextState.goalTotal ?? goals.length,
     escalation_step: turn.escalationStep || 0,
-    turn_number: nextState.totalTurns,
+
+    goal_correct: tally?.correct ?? 0,
+    goal_total_questions: tally?.total ?? 0,
+    goal_errors: tally?.errors ?? [],
+
+    total_turns: nextState.totalTurns ?? 0,
+    total_questions: nextState.totalQuestions ?? 0,
+    consecutive_wrong: nextState.consecutiveWrong ?? 0,
+    off_topic_streak: nextState.offTopicStreak ?? 0,
+    stuck_streak: nextState.stuckStreak ?? 0,
+    reteach_pending: Boolean(nextState.reteachPending),
+    reveal_pending: Boolean(nextState.revealPending),
+
+    user_message: studentMessage,
+    ai_response_preview: preview || null,
+    ai_bubble_count: bubbles.length,
+
+    // Only meaningful once the session has something to report.
+    mastery_score_percent: report?.overall_mastery_percent ?? null,
+    performance_level: report?.performance_level ?? null,
+    star_rating: report?.star_rating ?? null,
+    end_reason: nextState.endedReason ?? null,
+
+    was_graded: Boolean(gradedThisTurn),
+  };
+}
+
+/**
+ * A wrong answer, filed against the curriculum it belongs to.
+ *
+ * Returns null for anything that is not an assessed, incorrect answer, so an
+ * unscored PROBE guess never shows up as a mistake the student made.
+ */
+function buildErrorRecord({ userId, chatId, turn, topic = {}, goals = [], studentMessage }, prevState) {
+  const { evaluatorResult, gradedThisTurn, nextState, answeredGoalIndex, answeredPhase } = turn;
+  if (!gradedThisTurn || evaluatorResult.is_correct !== false) return null;
+  if (!topic.chapter_id || !topic.subject_id) return null;
+
+  return {
+    user_id: userId,
+    topic_id: topic.id,
+    chapter_id: topic.chapter_id,
+    subject_id: topic.subject_id,
+    goal_id: goals[answeredGoalIndex]?.id ?? null,
+    chat_id: chatId,
+
+    error_type: evaluatorResult.error_type || "Conceptual",
+    severity: (evaluatorResult.score_percent ?? 0) === 0 ? "high" : "medium",
+
+    question_text: turn.lastQuestionText || null,
+    user_answer: studentMessage,
+    correct_answer: evaluatorResult.complete_answer || null,
+    diff_html: evaluatorResult.diff_html || null,
+    score_percent: evaluatorResult.score_percent ?? 0,
+
+    phase: answeredPhase,
+    attempt_number: (nextState.consecutiveWrong ?? 0) + 1,
+    was_retaught: Boolean(nextState.reteachPending),
+    mastery_before: masteryOf(prevState?.perGoal?.[answeredGoalIndex]) ?? 0,
+    mastery_after: masteryOf(nextState.perGoal[answeredGoalIndex]) ?? 0,
   };
 }
 
@@ -162,9 +259,11 @@ function buildTurnRecord({
  * @returns {Promise<{ok: boolean, id?: number, error?: string}>}
  */
 async function recordTurn(params) {
-  let record;
+  let record, log, errorRecord;
   try {
     record = buildTurnRecord(params);
+    log = buildTurnLog(params);
+    errorRecord = buildErrorRecord(params, params.prevState);
   } catch (error) {
     console.error("[learning-turns] BUILD FAILED", error.message, {
       user_id: params.userId,
@@ -175,6 +274,8 @@ async function recordTurn(params) {
 
   try {
     const saved = await prisma.learning_turns.create({ data: record });
+    await prisma.tutor_turn_logs.create({ data: log });
+    if (errorRecord) await prisma.topic_chat_errors.create({ data: errorRecord });
     await upsertGoalProgress(params, record);
     return { ok: true, id: saved.id };
   } catch (error) {
@@ -182,8 +283,8 @@ async function recordTurn(params) {
       user_id: record.user_id,
       chat_id: record.chat_id,
       goal_id: record.goal_id,
-      phase: record.phase,
-      turn_number: record.turn_number,
+      phase: log.phase,
+      turn: log.total_turns,
     });
     return { ok: false, error: error.message };
   }
@@ -247,6 +348,8 @@ async function upsertGoalProgress(params, record) {
 module.exports = {
   recordTurn,
   buildTurnRecord,
+  buildTurnLog,
+  buildErrorRecord,
   buildFeedbackText,
   masteryOf,
   coverageOf,

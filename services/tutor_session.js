@@ -51,6 +51,7 @@ function topicContext(topic) {
     id: topic.id,
     title: topic.title,
     content: topic.content || "",
+    chapter_id: topic.chapter_id ?? null,
     subject_id: topic.subject_id ?? topic.chapter?.subject?.id ?? null,
     subject_name: topic.chapter?.subject?.name ?? null,
   };
@@ -220,6 +221,10 @@ async function processMessage(topicId, userId, studentMessage) {
   }
 
   const finished = turn.nextState.phase === "DONE";
+  if (finished) {
+    await persistSessionSummary(userId, topicContext(topic), session, turn.nextState, turn.masteryReport);
+  }
+
   await prisma.tutor_sessions.update({
     where: { id: session.id },
     data: {
@@ -241,6 +246,41 @@ async function processMessage(topicId, userId, studentMessage) {
     mermaid_diagram: turn.mermaid_diagram,
     all_goals_completed: turn.all_goals_completed,
   };
+}
+
+/**
+ * Close the session out: the summary row a session leaves behind once it ends.
+ *
+ * Distinct from tutor_sessions, which holds the live state a session is
+ * resumed from. This one is the record of what happened.
+ */
+async function persistSessionSummary(userId, topic, session, state, report) {
+  const started = session.started_at ? new Date(session.started_at) : new Date();
+  const correct = report?.correct_answers ?? 0;
+  const asked = report?.total_questions ?? 0;
+
+  await prisma.topic_chat_sessions.create({
+    data: {
+      user_id: userId,
+      topic_id: topic.id,
+      subject_id: topic.subject_id ?? null,
+      chapter_id: topic.chapter_id ?? null,
+      started_at: started,
+      ended_at: new Date(),
+      duration_seconds: Math.max(0, Math.round((Date.now() - started.getTime()) / 1000)),
+      total_turns: state.totalTurns ?? 0,
+      total_questions: asked,
+      correct_answers: correct,
+      incorrect_answers: Math.max(0, asked - correct),
+      score_percent: report?.overall_mastery_percent ?? 0,
+      goals_completed: report?.goals_covered ?? 0,
+      goals_total: report?.goals_total ?? state.goalTotal ?? 0,
+      end_reason: state.endedReason || "complete",
+      performance_level: report?.performance_level ?? null,
+      star_rating: report?.star_rating ?? 0,
+      final_state_json: state,
+    },
+  });
 }
 
 /**
@@ -294,6 +334,7 @@ module.exports = {
   processMessage,
   processOption,
   persistMasteryReport,
+  persistSessionSummary,
   topicContext,
   elapsedSince,
 };

@@ -15,7 +15,16 @@ const prismaPath = require.resolve("../lib/prisma");
 const evaluatorPath = require.resolve("./tutor-core/evaluator");
 const generatorPath = require.resolve("./tutor-core/tutor-generator");
 
-const writes = { learning_turns: [], goal_progress: [], admin_chat: [], sessions: [], reports: [] };
+const writes = {
+  learning_turns: [],
+  turn_logs: [],
+  errors: [],
+  summaries: [],
+  goal_progress: [],
+  admin_chat: [],
+  sessions: [],
+  reports: [],
+};
 let verdict;
 let sessionState = null;
 
@@ -64,6 +73,24 @@ const prismaStub = {
   learning_turns: {
     create: async ({ data }) => {
       writes.learning_turns.push(data);
+      return { id: nextId++, ...data };
+    },
+  },
+  tutor_turn_logs: {
+    create: async ({ data }) => {
+      writes.turn_logs.push(data);
+      return { id: nextId++, ...data };
+    },
+  },
+  topic_chat_errors: {
+    create: async ({ data }) => {
+      writes.errors.push(data);
+      return { id: nextId++, ...data };
+    },
+  },
+  topic_chat_sessions: {
+    create: async ({ data }) => {
+      writes.summaries.push(data);
       return { id: nextId++, ...data };
     },
   },
@@ -137,24 +164,25 @@ async function runTurns(n) {
   return writes.learning_turns;
 }
 
-test("every turn writes a learning_turns row carrying the instrumentation", async () => {
+test("every turn writes an audit log carrying the instrumentation", async () => {
   reset();
-  const rows = await runTurns(4);
+  await runTurns(4);
 
-  assert.equal(rows.length, 4);
-  for (const row of rows) {
-    assert.ok(row.phase, "phase must be recorded on every turn");
-    assert.ok(row.directive, "directive must be recorded on every turn");
-    assert.ok(row.intent, "intent must be recorded on every turn");
-    assert.equal(typeof row.escalation_step, "number");
-    assert.ok(row.turn_number > 0);
+  assert.equal(writes.turn_logs.length, 4, "one log per turn");
+  for (const log of writes.turn_logs) {
+    assert.ok(log.phase, "phase must be recorded on every turn");
+    assert.ok(log.state_instruction, "directive must be recorded on every turn");
+    assert.ok(log.intent, "intent must be recorded on every turn");
+    assert.equal(typeof log.escalation_step, "number");
+    assert.ok(log.total_turns > 0);
   }
 
   assert.deepEqual(
-    rows.map((r) => r.phase),
+    writes.turn_logs.map((l) => l.answered_in_phase),
     ["PROBE", "THEORY", "OBJECTIVES", "DIALOGUE"],
     "the session walks the arc instead of sitting in one phase"
   );
+  assert.equal(writes.learning_turns.length, 4, "and the student-facing record keeps pace");
 });
 
 test("the metadata that was null on 42% of pilot rows is always present", async () => {

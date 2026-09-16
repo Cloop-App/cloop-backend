@@ -15,7 +15,7 @@ router.get("/", async (req, res) => {
   try {
     const userId = req.user.user_id;
 
-    const messages = await prisma.normalChat.findMany({
+    const messages = await prisma.normal_user_chat.findMany({
       where: { user_id: userId },
       orderBy: { created_at: "asc" },
     });
@@ -41,7 +41,7 @@ router.post("/", async (req, res) => {
     }
 
     // Persist user message
-    const userMessage = await prisma.normalChat.create({
+    const userMessage = await prisma.normal_user_chat.create({
       data: {
         user_id: userId,
         sender: "user",
@@ -50,13 +50,13 @@ router.post("/", async (req, res) => {
     });
 
     // Load recent history for context
-    const history = await prisma.normalChat.findMany({
+    const history = await prisma.normal_user_chat.findMany({
       where: { user_id: userId },
       orderBy: { created_at: "asc" },
       take: 50,
     });
 
-    const user = await prisma.user.findUnique({ where: { user_id: userId } });
+    const user = await prisma.users.findUnique({ where: { user_id: userId } });
 
     const openaiMessages = [
       {
@@ -72,7 +72,7 @@ router.post("/", async (req, res) => {
     const aiResponse = await chatCompletion(openaiMessages);
 
     // Persist AI response
-    const aiMessage = await prisma.normalChat.create({
+    const aiMessage = await prisma.normal_user_chat.create({
       data: {
         user_id: userId,
         sender: "ai",
@@ -95,7 +95,7 @@ router.delete("/", async (req, res) => {
   try {
     const userId = req.user.user_id;
 
-    await prisma.normalChat.deleteMany({ where: { user_id: userId } });
+    await prisma.normal_user_chat.deleteMany({ where: { user_id: userId } });
 
     return res.json({ success: true });
   } catch (err) {

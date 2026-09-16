@@ -1,7 +1,7 @@
 const { Router } = require("express");
 const { authenticateToken } = require("../../middleware/auth");
 const prisma = require("../../lib/prisma");
-const { loadTopicChat, processMessage, processOption } = require("../../services/topic_chat");
+const { loadTutorChat, processMessage, processOption } = require("../../services/tutor_session");
 
 const router = Router();
 
@@ -9,15 +9,14 @@ router.use(authenticateToken);
 
 /**
  * GET /api/topic-chats/:topicId
- * Load a topic chat session — returns messages, goals, and initial greeting.
+ * Load a tutoring session — messages so far, goals, and the current phase.
  */
 router.get("/:topicId", async (req, res) => {
   try {
-    const topicId = parseInt(req.params.topicId);
+    const topicId = parseInt(req.params.topicId, 10);
     const userId = req.user.user_id;
 
-    const result = await loadTopicChat(topicId, userId);
-    return res.json(result);
+    return res.json(await loadTutorChat(topicId, userId));
   } catch (err) {
     if (err.message === "Topic not found") {
       return res.status(404).json({ error: "Topic not found." });
@@ -29,21 +28,20 @@ router.get("/:topicId", async (req, res) => {
 
 /**
  * POST /api/topic-chats/:topicId
- * Send a user message and get AI response.
- * Full pipeline: persist → OpenAI → parse → persist AI msgs → update goals → summary.
+ * One tutoring turn, through the full tutor-core pipeline:
+ * evaluate -> advance state -> generate -> validate -> persist.
  */
 router.post("/:topicId", async (req, res) => {
   try {
-    const topicId = parseInt(req.params.topicId);
+    const topicId = parseInt(req.params.topicId, 10);
     const userId = req.user.user_id;
-    const { message, session_time_seconds } = req.body;
+    const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required." });
     }
 
-    const result = await processMessage(topicId, userId, message, session_time_seconds);
-    return res.json(result);
+    return res.json(await processMessage(topicId, userId, message));
   } catch (err) {
     if (err.message === "Topic not found") {
       return res.status(404).json({ error: "Topic not found." });
@@ -55,21 +53,24 @@ router.post("/:topicId", async (req, res) => {
 
 /**
  * POST /api/topic-chats/:topicId/option
- * Handle option button selection (Got it / Confused / End Session / Learn More).
+ * An option button ("Got it", "Confused"). Runs the same pipeline as a typed
+ * message so the answer is evaluated and recorded rather than waved through.
  */
 router.post("/:topicId/option", async (req, res) => {
   try {
-    const topicId = parseInt(req.params.topicId);
+    const topicId = parseInt(req.params.topicId, 10);
     const userId = req.user.user_id;
-    const { chatId, option } = req.body;
+    const { option } = req.body;
 
     if (!option) {
       return res.status(400).json({ error: "Option is required." });
     }
 
-    const result = await processOption(topicId, userId, chatId, option);
-    return res.json(result);
+    return res.json(await processOption(topicId, userId, option));
   } catch (err) {
+    if (err.message === "Topic not found") {
+      return res.status(404).json({ error: "Topic not found." });
+    }
     console.error("Option error:", err);
     return res.status(500).json({ error: "Internal server error." });
   }
@@ -77,11 +78,11 @@ router.post("/:topicId/option", async (req, res) => {
 
 /**
  * POST /api/topic-chats/:topicId/update-time
- * Update the session time for a topic chat.
+ * Record time spent on the topic.
  */
 router.post("/:topicId/update-time", async (req, res) => {
   try {
-    const topicId = parseInt(req.params.topicId);
+    const topicId = parseInt(req.params.topicId, 10);
     const userId = req.user.user_id;
     const { session_time_seconds } = req.body;
 
@@ -89,18 +90,19 @@ router.post("/:topicId/update-time", async (req, res) => {
       return res.status(400).json({ error: "session_time_seconds is required." });
     }
 
-    // Update the latest chat message with the session time
-    const latestChat = await prisma.topicChat.findFirst({
-      where: { topic_id: topicId, user_id: userId },
-      orderBy: { created_at: "desc" },
+    await prisma.user_topic_progress.upsert({
+      where: { user_id_topic_id: { user_id: userId, topic_id: topicId } },
+      create: {
+        user_id: userId,
+        topic_id: topicId,
+        time_spent_seconds: session_time_seconds,
+        last_accessed_at: new Date(),
+      },
+      update: {
+        time_spent_seconds: session_time_seconds,
+        last_accessed_at: new Date(),
+      },
     });
-
-    if (latestChat) {
-      await prisma.topicChat.update({
-        where: { id: latestChat.id },
-        data: { session_time_seconds },
-      });
-    }
 
     return res.json({ success: true });
   } catch (err) {

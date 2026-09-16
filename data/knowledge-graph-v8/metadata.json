@@ -1,0 +1,10 @@
+{
+  "source_workbook": "Cloop_Academic_Knowledge_Graph_v8.0_CLOOP_GRAPH_MASTERY_ENGINE.xlsx",
+  "concept_nodes": 9306,
+  "prerequisite_edges_inferred": 876,
+  "mastery_stages": 7,
+  "error_tags": 8,
+  "remediation_rules": 6,
+  "production_claim": "LOCKED",
+  "note": "v8 canonical config. Concepts/prereqs are candidates; SME + item calibration required before production lock."
+}

@@ -2,6 +2,7 @@ const { Router } = require("express");
 const prisma = require("../../lib/prisma");
 const { generateToken } = require("../../middleware/auth");
 const { sendLoginNotifications } = require("../../services/notifications");
+const { SUBJECT_NAMES } = require("../../services/curriculum");
 
 const router = Router();
 
@@ -17,8 +18,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Name and email are required." });
     }
 
-    // Check if user already exists
-    const existing = await prisma.user.findUnique({
+    const existing = await prisma.users.findUnique({
       where: { email: email.toLowerCase() },
     });
 
@@ -26,11 +26,12 @@ router.post("/", async (req, res) => {
       return res.status(409).json({ error: "User with this email already exists." });
     }
 
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
         name,
         email: email.toLowerCase(),
         phone: phone || null,
+        subjects: [],
       },
     });
 
@@ -55,16 +56,21 @@ router.post("/", async (req, res) => {
 
 /**
  * GET /api/signup/options
- * Returns dropdown data for onboarding: grades, boards, languages, subjects.
+ * Dropdown data for onboarding: grades, boards, languages, subjects.
+ *
+ * Subjects come from the code list rather than the catalog: catalog entries
+ * exist per board and grade, so before a student has picked either there is
+ * nothing there to offer them.
  */
 router.get("/options", async (req, res) => {
   try {
-    const [grades, boards, languages, subjects] = await Promise.all([
-      prisma.gradeLevel.findMany({ orderBy: { id: "asc" } }),
-      prisma.board.findMany({ orderBy: { id: "asc" } }),
-      prisma.language.findMany({ orderBy: { id: "asc" } }),
-      prisma.subject.findMany({ orderBy: { id: "asc" } }),
+    const [grades, boards, languages] = await Promise.all([
+      prisma.grade_levels.findMany({ orderBy: { id: "asc" } }),
+      prisma.boards.findMany({ orderBy: { id: "asc" } }),
+      prisma.languages.findMany({ where: { is_active: true }, orderBy: { id: "asc" } }),
     ]);
+
+    const subjects = Object.entries(SUBJECT_NAMES).map(([code, name]) => ({ code, name }));
 
     return res.json({ grades, boards, languages, subjects });
   } catch (err) {

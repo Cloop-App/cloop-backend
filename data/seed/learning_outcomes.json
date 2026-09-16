@@ -1,0 +1,26 @@
+[
+  {
+    "id": "LO-001",
+    "concept": "MATH-ALG-002",
+    "level": "APPLY",
+    "statement": "Solve quadratic equations using an appropriate method."
+  },
+  {
+    "id": "LO-002",
+    "concept": "MATH-TRIG-001",
+    "level": "APPLY",
+    "statement": "Select and apply an appropriate trigonometric ratio."
+  },
+  {
+    "id": "LO-003",
+    "concept": "PHY-VEC-001",
+    "level": "APPLY",
+    "statement": "Resolve a vector into perpendicular components."
+  },
+  {
+    "id": "LO-004",
+    "concept": "PHY-MEC-002",
+    "level": "APPLY",
+    "statement": "Construct a correct free-body diagram."
+  }
+]

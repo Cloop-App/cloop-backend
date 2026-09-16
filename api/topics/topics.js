@@ -8,14 +8,14 @@ router.use(authenticateToken);
 
 /**
  * GET /api/topics/:chapterId
- * Returns topics for a chapter with user-specific completion and time data.
+ * Topics in a chapter, with the user's progress against each.
  */
 router.get("/:chapterId", async (req, res) => {
   try {
-    const chapterId = parseInt(req.params.chapterId);
+    const chapterId = parseInt(req.params.chapterId, 10);
     const userId = req.user.user_id;
 
-    const chapter = await prisma.chapter.findUnique({
+    const chapter = await prisma.global_chapters.findUnique({
       where: { id: chapterId },
       include: { subject: true },
     });
@@ -24,41 +24,31 @@ router.get("/:chapterId", async (req, res) => {
       return res.status(404).json({ error: "Chapter not found." });
     }
 
-    const topics = await prisma.topic.findMany({
+    const topics = await prisma.global_topics.findMany({
       where: { chapter_id: chapterId },
       orderBy: { order: "asc" },
     });
 
-    // Attach user-specific progress to each topic
-    const topicsWithProgress = await Promise.all(
-      topics.map(async (topic) => {
-        const latestChat = await prisma.topicChat.findFirst({
-          where: { topic_id: topic.id, user_id: userId },
-          orderBy: { created_at: "desc" },
-        });
+    // One query for the whole chapter rather than two per topic.
+    const progress = await prisma.user_topic_progress.findMany({
+      where: { user_id: userId, topic_id: { in: topics.map((t) => t.id) } },
+    });
+    const byTopic = new Map(progress.map((p) => [p.topic_id, p]));
 
-        // Sum time spent across all messages for this topic
-        const timeAgg = await prisma.topicChat.aggregate({
-          where: {
-            topic_id: topic.id,
-            user_id: userId,
-            session_time_seconds: { not: null },
-          },
-          _max: { session_time_seconds: true },
-        });
-
+    return res.json({
+      chapter,
+      topics: topics.map((topic) => {
+        const seen = byTopic.get(topic.id);
         return {
           id: topic.id,
           title: topic.title,
           content: topic.content,
-          is_completed: latestChat?.is_completed || false,
-          completion_percent: latestChat?.completion_percent || 0,
-          time_spent_seconds: timeAgg._max.session_time_seconds || 0,
+          is_completed: seen?.is_completed ?? false,
+          completion_percent: Number(seen?.completion_percent ?? 0),
+          time_spent_seconds: seen?.time_spent_seconds ?? 0,
         };
-      })
-    );
-
-    return res.json({ chapter, topics: topicsWithProgress });
+      }),
+    });
   } catch (err) {
     console.error("Topics error:", err);
     return res.status(500).json({ error: "Internal server error." });

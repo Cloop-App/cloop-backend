@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ERR-CONCEPT",
+    "category": "CONCEPTUAL",
+    "description": "Incorrect conceptual model."
+  },
+  {
+    "id": "ERR-ALG",
+    "category": "ALGEBRAIC",
+    "description": "Incorrect algebraic manipulation."
+  },
+  {
+    "id": "ERR-TRIG",
+    "category": "CONCEPTUAL",
+    "description": "Incorrect trigonometric ratio selection."
+  },
+  {
+    "id": "ERR-VECTOR",
+    "category": "VECTOR",
+    "description": "Incorrect component direction or sign."
+  },
+  {
+    "id": "ERR-DIAGRAM",
+    "category": "DIAGRAM",
+    "description": "Force omitted or incorrectly represented."
+  },
+  {
+    "id": "ERR-PREREQ",
+    "category": "PREREQUISITE_GAP",
+    "description": "Upstream concept weakness limits target performance."
+  }
+]

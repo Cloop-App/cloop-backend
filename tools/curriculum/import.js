@@ -122,11 +122,18 @@ async function importConcepts(concepts, topicIds = new Map(), chapterKeyOf = new
   for (const c of concepts) {
     const description = c.learning_objective || c.learning_outcome || null;
     const difficulty = Number.isInteger(c.difficulty) ? c.difficulty : null;
-    // node -> chapter -> the topic of the same name. Exact match only: a
-    // near-miss here would file a concept under the wrong lesson.
-    const chapterKey = chapterKeyOf.get(c.node_id);
+    // The extractor resolves every concept to its anchor's topic; fall back to
+    // the node map for anything it could not. Exact match only — a near-miss
+    // would file a concept under the wrong lesson.
+    const chapterKey = c.chapter_key || chapterKeyOf.get(c.node_id);
     const topicId = chapterKey ? topicIds.get(`${chapterKey}||${c.topic}`) ?? null : null;
     if (topicId) linked++;
+
+    // Legacy rows carry a name and nothing else. Recording that in source_id
+    // keeps "we have a concept here" distinct from "we know what it teaches".
+    const provenance = c.provenance
+      ? `${VERSION}:${c.provenance}`
+      : c.source_url || VERSION;
 
     await prisma.academicConcept.upsert({
       where: { code: c.code },
@@ -134,12 +141,12 @@ async function importConcepts(concepts, topicIds = new Map(), chapterKeyOf = new
         code: c.code, canonical_name: c.name, subject: c.subject || "Unknown",
         class_level: c.class_level, description, difficulty_band: difficulty,
         concept_type: c.bloom || null, status: "ACTIVE",
-        source_id: c.source_url || VERSION, curriculum_topic_id: topicId,
+        source_id: provenance, curriculum_topic_id: topicId,
       },
       update: {
         canonical_name: c.name, subject: c.subject || "Unknown",
         class_level: c.class_level, description, difficulty_band: difficulty,
-        concept_type: c.bloom || null, source_id: c.source_url || VERSION,
+        concept_type: c.bloom || null, source_id: provenance,
         curriculum_topic_id: topicId,
       },
     });

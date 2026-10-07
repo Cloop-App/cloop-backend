@@ -81,7 +81,7 @@ def main(xlsx_path, out_path):
     subjects, chapters, topics, concepts, prereqs = {}, {}, [], [], []
     skipped = collections.Counter()
     chapter_order = collections.Counter()
-    node_to_chapter = {}
+    node_to_chapter, node_to_topic = {}, {}
 
     # ── curriculum anchors ───────────────────────────────────────────────
     for r in sheet_rows(wb, "Curriculum_Master_v11"):
@@ -122,6 +122,7 @@ def main(xlsx_path, out_path):
 
         topic_title = clean(r.get("Topic"))
         if topic_title:
+            node_to_topic[node] = (ch_key, topic_title)
             topics.append({
                 "chapter_key": ch_key, "title": topic_title,
                 "derivation_status": clean(r.get("Derivation Status")) or "",
@@ -168,6 +169,33 @@ def main(xlsx_path, out_path):
             "production_status": clean(r.get("Production Status")),
         })
 
+    # ── legacy concept pool ──────────────────────────────────────────────
+    #
+    # Classes VIII-XII and the entrance exams have no v11 concept layer; this
+    # sheet is all that covers them. It carries concept names and their
+    # curriculum node, and nothing else — no objective, no difficulty, no
+    # misconception. Those are imported as null rather than invented, so a
+    # missing value stays visibly missing.
+    seen_concept = {c["code"] for c in concepts}
+    for r in sheet_rows(wb, "Legacy_Concept_Alias_v10"):
+        code = clean(r.get("Concept ID"))
+        concept = clean(r.get("Concept"))
+        node = clean(r.get("Curriculum Node ID"))
+        if not (code and concept) or code in seen_concept:
+            skipped["legacy concept duplicate/incomplete"] += 1
+            continue
+        seen_concept.add(code)
+        concepts.append({
+            "code": code, "name": concept, "subject": clean(r.get("Subject")),
+            "class_level": ROMAN.get(str(r.get("Class") or "").strip().upper()),
+            "node_id": node, "topic": None, "chapter": clean(r.get("Chapter")),
+            "difficulty": None, "learning_objective": None, "bloom": None,
+            "misconception": None,
+            "provenance": "LEGACY_V10_NAMES_ONLY",
+            "source_url": None,
+            "production_status": clean(r.get("Production Status")),
+        })
+
     # ── prerequisite graph (v11 edges only) ──────────────────────────────
     for r in sheet_rows(wb, "Prerequisite_Graph_v11"):
         version = (clean(r.get("Graph Version")) or "").lower()
@@ -186,6 +214,16 @@ def main(xlsx_path, out_path):
             "rationale": clean(r.get("Rationale")),
         })
 
+    # A v11 concept names its own topic; a legacy one does not, so both are
+    # resolved through the anchor node they share.
+    for c in concepts:
+        if not c.get("topic"):
+            hit = node_to_topic.get(c.get("node_id"))
+            if hit:
+                c["chapter_key"], c["topic"] = hit
+        else:
+            c["chapter_key"] = node_to_chapter.get(c.get("node_id"))
+
     wb.close()
 
     payload = {
@@ -201,6 +239,10 @@ def main(xlsx_path, out_path):
     print(f"  verified chapters: {sum(1 for c in payload['chapters'] if c['verified'])}")
     print(f"  concepts with a misconception: {sum(1 for c in concepts if c['misconception'])}")
     print(f"  concepts with a difficulty:    {sum(1 for c in concepts if c['difficulty'])}")
+    print(f"  concepts resolved to a topic:  {sum(1 for c in concepts if c.get('topic'))}")
+    prov = collections.Counter(c.get('provenance') for c in concepts)
+    for k, n in prov.most_common():
+        print(f"    {n:>6}  {k}")
     if skipped:
         print("  skipped:", dict(skipped))
 

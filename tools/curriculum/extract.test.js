@@ -105,12 +105,39 @@ test("test prep is present and marked as such", () => {
   assert.ok(prep.every((s) => s.grade === "Class 11-12"));
 });
 
-test("the concept layer carries what the mastery engine needs", () => {
+test("every concept resolves to a topic, or it cannot reach a student", () => {
   assert.ok(data.concepts.length > 0);
   for (const c of data.concepts) {
-    assert.ok(c.misconception, `${c.code} has no misconception`);
-    assert.ok(Number.isInteger(c.difficulty), `${c.code} has no difficulty`);
+    assert.ok(c.topic, `${c.code} is not attached to any topic`);
+    assert.ok(c.chapter_key, `${c.code} has no chapter`);
   }
+});
+
+test("the two concept pools are kept honestly apart", () => {
+  const derived = data.concepts.filter((c) => /PEDAGOGICALLY_DERIVED/.test(c.provenance || ""));
+  const legacy = data.concepts.filter((c) => c.provenance === "LEGACY_V10_NAMES_ONLY");
+  assert.ok(derived.length > 0 && legacy.length > 0, "both pools must be present");
+
+  // The v11 pool carries a difficulty and an objective.
+  for (const c of derived) {
+    assert.ok(Number.isInteger(c.difficulty), `${c.code} lost its difficulty`);
+    assert.ok(c.learning_objective, `${c.code} lost its objective`);
+  }
+  // The legacy pool carries a name and nothing else. Those fields must stay
+  // null: a fabricated difficulty would be indistinguishable from a real one.
+  for (const c of legacy) {
+    assert.equal(c.difficulty, null, `${c.code} invented a difficulty`);
+    assert.equal(c.learning_objective, null, `${c.code} invented an objective`);
+    assert.equal(c.misconception, null, `${c.code} invented a misconception`);
+  }
+});
+
+test("no misconception is invented for the classes that have none", () => {
+  const withMis = data.concepts.filter((c) => c.misconception);
+  // Only the v11 Class 6-7 pool has any, and even those are generic.
+  assert.ok(withMis.every((c) => /PEDAGOGICALLY_DERIVED/.test(c.provenance || "")));
+  assert.ok(withMis.length < data.concepts.length * 0.2,
+    "most concepts have no misconception, and must not acquire one by generation");
 });
 
 test("no legacy prerequisite edge is imported", () => {

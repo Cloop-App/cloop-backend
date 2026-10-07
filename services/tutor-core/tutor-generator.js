@@ -32,7 +32,8 @@ async function generateTutorResponse({
   reportBrief = null,
   lastQuestionText,
   recentHistory = [],
-  classLevel = 'Class 10'
+  classLevel = 'Class 10',
+  concepts = []
 }) {
   // Build human-readable directive summary
   let directiveGuidance = '';
@@ -165,11 +166,31 @@ async function generateTutorResponse({
 }`;
   }
 
+  // The verified curriculum for this topic, as a short anchor.
+  //
+  // Only names, objectives and difficulty. The misconception field is left out
+  // on purpose: 594 of the 1,055 concepts share one generic string ("can recall
+  // a term but cannot explain the relationship"), so feeding it would have the
+  // tutor name a specific wrong mental model it has no evidence for. A
+  // confident misdiagnosis is worse than the generic verdict it replaces.
+  const conceptLines = (concepts || [])
+    .slice(0, 5)
+    .map((c) => {
+      const band = c.difficulty_band ? ` [difficulty ${c.difficulty_band}]` : '';
+      const aim = c.description ? ` — ${c.description}` : '';
+      return `- ${c.canonical_name}${band}${aim}`;
+    })
+    .join('\n');
+
+  const syllabusBlock = conceptLines
+    ? `\nCONCEPTS THIS TOPIC COVERS (from the verified syllabus — stay inside them):\n${conceptLines}\n`
+    : '';
+
   const systemPrompt = `You are Cloop, a friendly, encouraging Socratic tutor for ${classLevel} students.
 Topic: "${topicTitle}"
 Current Goal: "${currentGoalTitle}"
 Phase: ${phase} (${questionType ? `Question Type: ${questionType}` : 'Concluding'})
-
+${syllabusBlock}
 SITUATION FOR THIS TURN:
 - Last Question: "${lastQuestionText || 'Initial introduction'}"
 - Student Message: "${studentMessage || 'None'}"
@@ -183,6 +204,7 @@ STRICT GENERATION RULES:
 3. TERMINAL QUESTION: ${isWrap ? 'Do NOT ask any question.' : "The final bubble MUST end with an answerable question for the student (ending with '?')."}
 4. Tone: Warm, natural, and encouraging. Never use hollow robotic praise ("Awesome!", "Brilliant!"). Use genuine warmth ("Spot on!", "Nice work.", "Almost!").
 5. Output STRICT JSON only.
+${conceptLines ? '6. STAY ON SYLLABUS: teach and question only within the concepts listed above. Do not introduce material from outside them.' : ''}
 
 ${schemaInstructions}`;
 

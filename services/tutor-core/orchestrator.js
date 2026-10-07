@@ -49,7 +49,8 @@ async function processTutorTurn({
   goals = [],
   chatHistory = [],
   currentState = null,
-  userProfile = {}
+  userProfile = {},
+  concepts = []
 }) {
   const goalTotal = Math.max(1, goals.length);
   const state = currentState || initialState(goalTotal);
@@ -128,7 +129,8 @@ async function processTutorTurn({
     reportBrief: masteryBrief,
     lastQuestionText,
     recentHistory: chatHistory,
-    classLevel
+    classLevel,
+    concepts
   });
 
   // ── Step 3b: Diagram / Attachments Retrieval ──────────────────────────────

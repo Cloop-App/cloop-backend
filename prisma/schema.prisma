@@ -1278,11 +1278,18 @@ model AcademicConcept {
   version         Int      @default(1)
   status          String   @default("ACTIVE") // ACTIVE | GENERATED | DEPRECATED
   source_id       String?
+  /// The curriculum topic this concept belongs to. Deliberately a plain id and
+  /// not a relation: these tables stay decoupled from the rest of the schema so
+  /// ingestion is order-free, but without this link there is no way to ask what
+  /// a topic is actually meant to teach, and the concept layer cannot reach a
+  /// student.
+  curriculum_topic_id Int?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
   @@index([subject])
   @@index([canonical_name])
+  @@index([curriculum_topic_id], map: "idx_academic_concepts_topic")
   @@map("academic_concepts")
 }
 

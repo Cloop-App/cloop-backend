@@ -153,6 +153,11 @@ def main(xlsx_path, out_path):
         difficulty = clean(r.get("Difficulty Heuristic"))
         concepts.append({
             "code": code, "name": concept, "subject": clean(r.get("Subject")),
+            # The anchor this concept hangs off. Without it the concept layer
+            # cannot be joined back to a topic, and so cannot reach a student.
+            "node_id": clean(r.get("Curriculum Node ID")),
+            "topic": clean(r.get("Topic")),
+            "chapter": clean(r.get("Chapter")),
             "class_level": ROMAN.get(str(r.get("Class") or "").strip().upper()),
             "difficulty": int(difficulty) if (difficulty or "").isdigit() else None,
             "learning_objective": clean(r.get("Learning Objective")),

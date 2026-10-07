@@ -82,6 +82,7 @@ async function importChapters(chapters, subjectIds) {
 
 async function importTopics(topics, chapterIds) {
   let created = 0, updated = 0, orphaned = 0;
+  const ids = new Map();   // `${chapter_key}||${title}` -> global_topics.id
   for (const t of topics) {
     const chapter = chapterIds.get(t.chapter_key);
     if (!chapter) { orphaned++; continue; }
@@ -97,15 +98,17 @@ async function importTopics(topics, chapterIds) {
 
     if (existing) {
       await prisma.global_topics.update({ where: { id: existing.id }, data });
+      ids.set(`${t.chapter_key}||${t.title}`, existing.id);
       updated++;
     } else {
-      await prisma.global_topics.create({
+      const row = await prisma.global_topics.create({
         data: { chapter_id: chapter.id, subject_id: chapter.subject_id, title: t.title, ...data },
       });
+      ids.set(`${t.chapter_key}||${t.title}`, row.id);
       created++;
     }
   }
-  return { created, updated, orphaned };
+  return { created, updated, orphaned, ids };
 }
 
 /**
@@ -113,12 +116,17 @@ async function importTopics(topics, chapterIds) {
  * tables the mastery engine reads — keyed by code, with no foreign key to the
  * curriculum, so load order does not matter.
  */
-async function importConcepts(concepts) {
-  let conceptRows = 0, misconceptionRows = 0;
+async function importConcepts(concepts, topicIds = new Map(), chapterKeyOf = new Map()) {
+  let conceptRows = 0, misconceptionRows = 0, linked = 0;
 
   for (const c of concepts) {
     const description = c.learning_objective || c.learning_outcome || null;
     const difficulty = Number.isInteger(c.difficulty) ? c.difficulty : null;
+    // node -> chapter -> the topic of the same name. Exact match only: a
+    // near-miss here would file a concept under the wrong lesson.
+    const chapterKey = chapterKeyOf.get(c.node_id);
+    const topicId = chapterKey ? topicIds.get(`${chapterKey}||${c.topic}`) ?? null : null;
+    if (topicId) linked++;
 
     await prisma.academicConcept.upsert({
       where: { code: c.code },
@@ -126,12 +134,13 @@ async function importConcepts(concepts) {
         code: c.code, canonical_name: c.name, subject: c.subject || "Unknown",
         class_level: c.class_level, description, difficulty_band: difficulty,
         concept_type: c.bloom || null, status: "ACTIVE",
-        source_id: c.source_url || VERSION,
+        source_id: c.source_url || VERSION, curriculum_topic_id: topicId,
       },
       update: {
         canonical_name: c.name, subject: c.subject || "Unknown",
         class_level: c.class_level, description, difficulty_band: difficulty,
         concept_type: c.bloom || null, source_id: c.source_url || VERSION,
+        curriculum_topic_id: topicId,
       },
     });
     conceptRows++;
@@ -148,7 +157,7 @@ async function importConcepts(concepts) {
       misconceptionRows++;
     }
   }
-  return { conceptRows, misconceptionRows };
+  return { conceptRows, misconceptionRows, linked };
 }
 
 /**
@@ -196,12 +205,16 @@ async function main() {
   console.log(`  chapters   ${chapterIds.size}  (${verifiedCh} source-reconciled)`);
 
   const t = await importTopics(payload.topics, chapterIds);
+  const chapterKeyOf = new Map();
+  for (const c of payload.chapters) {
+    for (const node of c.node_ids || []) chapterKeyOf.set(node, c.chapter_key);
+  }
   const verifiedTp = payload.topics.filter((x) => x.verified).length;
   console.log(`  topics     ${t.created} created, ${t.updated} updated, ${t.orphaned} orphaned  (${verifiedTp} verified)`);
 
-  const c = await importConcepts(payload.concepts);
+  const c = await importConcepts(payload.concepts, t.ids, chapterKeyOf);
   const edges = await importPrerequisites(payload.prerequisites);
-  console.log(`  concepts   ${c.conceptRows}  misconceptions ${c.misconceptionRows}`);
+  console.log(`  concepts   ${c.conceptRows}  misconceptions ${c.misconceptionRows}  linked to a topic ${c.linked}`);
   console.log(`  prereq edges ${edges}`);
 
   const generated = await prisma.global_chapters.count({ where: { verified: false } });

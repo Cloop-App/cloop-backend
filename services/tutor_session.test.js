@@ -27,6 +27,7 @@ const writes = {
 };
 let verdict;
 let sessionState = null;
+const generatorCalls = [];
 
 const TOPIC = {
   id: 7,
@@ -69,6 +70,12 @@ const prismaStub = {
       writes.admin_chat.push({ update: data });
       return data;
     },
+  },
+  academicConcept: {
+    findMany: async () => [
+      { canonical_name: "law of reflection", description: "Explain the law of reflection.", difficulty_band: 2 },
+      { canonical_name: "angle of incidence", description: "Identify the angle of incidence.", difficulty_band: 1 },
+    ],
   },
   learning_turns: {
     create: async ({ data }) => {
@@ -134,15 +141,17 @@ require.cache[generatorPath] = {
   filename: generatorPath,
   loaded: true,
   exports: {
-    generateTutorResponse: async ({ stateInstruction }) => ({
-      messages: [{ message: `Reply for ${stateInstruction}?`, message_type: "text" }],
-    }),
+    generateTutorResponse: async (params) => {
+      generatorCalls.push(params);
+      return { messages: [{ message: `Reply for ${params.stateInstruction}?`, message_type: "text" }] };
+    },
   },
 };
 
 const { processMessage } = require("./tutor_session");
 
 function reset() {
+  generatorCalls.length = 0;
   for (const key of Object.keys(writes)) writes[key] = [];
   sessionState = null;
   verdict = {
@@ -314,4 +323,16 @@ test("a wrong answer marks the student's own message with the correction", async
   const correction = writes.admin_chat.find((w) => w.update?.message_type === "user_correction");
   assert.ok(correction, "the strikethrough goes on the student's message");
   assert.equal(correction.update.diff_html, "<del>a</del><ins>b</ins>");
+});
+
+test("the tutor is handed the topic's verified concepts, not the catalog", async () => {
+  reset();
+  await processMessage(7, 112, "light bounces");
+
+  const call = generatorCalls.at(-1);
+  assert.ok(Array.isArray(call.concepts), "concepts must reach the generator");
+  assert.equal(call.concepts.length, 2);
+  assert.equal(call.concepts[0].canonical_name, "law of reflection");
+  assert.ok(call.concepts[0].description, "the learning objective comes with it");
+  assert.equal(call.concepts[0].difficulty_band, 2);
 });

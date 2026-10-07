@@ -139,6 +139,17 @@ async function processMessage(topicId, userId, studentMessage) {
   history.reverse();
 
   const user = await prisma.users.findUnique({ where: { user_id: userId } });
+
+  // What the verified syllabus says this topic teaches. The tutor is given the
+  // concepts for the topic it is on, never the catalog — the model picks the
+  // words, the server picks the subject matter.
+  const concepts = await prisma.academicConcept.findMany({
+    where: { curriculum_topic_id: topic.id, status: "ACTIVE" },
+    select: { canonical_name: true, description: true, difficulty_band: true },
+    orderBy: { canonical_name: "asc" },
+    take: 5,
+  });
+
   const lastAiMessage = [...history].reverse().find((m) => m.sender === "ai");
   const responseTimeSec = elapsedSince(lastAiMessage);
 
@@ -170,6 +181,7 @@ async function processMessage(topicId, userId, studentMessage) {
     chatHistory: history,
     currentState: session.state,
     userProfile: { grade_level: user?.grade_level, board: user?.board, name: user?.name },
+    concepts,
   });
 
   // A correction belongs on the student's own message, which is where the app

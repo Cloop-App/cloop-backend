@@ -225,6 +225,15 @@ model global_subjects {
   name        String             @db.VarChar(100)
   code        String?            @db.VarChar(50)
   category    String?            @db.VarChar(50)
+  /// Where this curriculum came from. Null means it was generated rather than
+  /// sourced — the distinction the catalog previously had no way to record,
+  /// which is why an invented syllabus and a reconciled one looked identical.
+  source_authority   String?     @db.VarChar(150)
+  source_year        String?     @db.VarChar(50)
+  official_source    String?     @db.Text
+  curriculum_version String?     @db.VarChar(30)
+  /// An entrance exam rather than a school board.
+  is_test_prep       Boolean     @default(false)
   created_at  DateTime?          @default(now()) @db.Timestamp(6)
   updated_at  DateTime?          @default(now()) @db.Timestamp(6)
 
@@ -233,6 +242,7 @@ model global_subjects {
   curriculum_summaries user_curriculum_summary[]
 
   @@unique([board, grade, name])
+  @@index([is_test_prep], map: "idx_global_subjects_test_prep")
 }
 
 /// Global chapter catalog (no user_id — shared across all users)
@@ -242,6 +252,12 @@ model global_chapters {
   title       String           @db.VarChar(200)
   content     String?          @db.Text
   order       Int              @default(1)
+  unit                  String?   @db.VarChar(200)
+  source_node_id        String?   @db.VarChar(60)
+  reconciliation_status String?   @db.VarChar(40)
+  /// True only where the source document was reconciled against. Everything
+  /// else is unverified, and must not be presented as a board syllabus.
+  verified              Boolean   @default(false)
   created_at  DateTime?        @default(now()) @db.Timestamp(6)
 
   subject     global_subjects  @relation(fields: [subject_id], references: [id], onDelete: Cascade)
@@ -250,6 +266,7 @@ model global_chapters {
   topic_chat_errors topic_chat_errors[]
 
   @@index([subject_id])
+  @@index([verified], map: "idx_global_chapters_verified")
 }
 
 /// Global topic catalog (no user_id — shared across all users)
@@ -260,6 +277,8 @@ model global_topics {
   title              String                 @db.VarChar(200)
   content            String?                @db.Text
   order              Int                    @default(1)
+  derivation_status  String?                @db.VarChar(80)
+  verified           Boolean                @default(false)
   created_at         DateTime?              @default(now()) @db.Timestamp(6)
 
   chapter            global_chapters        @relation(fields: [chapter_id], references: [id], onDelete: Cascade)
@@ -275,6 +294,7 @@ model global_topics {
 
   @@index([chapter_id])
   @@index([subject_id])
+  @@index([verified], map: "idx_global_topics_verified")
 }
 
 /// Global learning goals catalog (no user_id — shared across all users)

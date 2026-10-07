@@ -15,12 +15,12 @@ const fs = require("fs");
 const path = require("path");
 const prisma = require("../../lib/prisma");
 
-const VERSION = "knowledge-graph-v10";
+const VERSION = process.env.CURRICULUM_VERSION || "knowledge-graph-v11.1";
 
 function parseArgs(argv) {
   const i = argv.indexOf("--file");
   return {
-    file: i !== -1 ? argv[i + 1] : path.join(__dirname, "../../data/curriculum/knowledge-graph-v10.json"),
+    file: i !== -1 ? argv[i + 1] : path.join(__dirname, "../../data/curriculum/knowledge-graph-v11.json"),
   };
 }
 
@@ -114,34 +114,27 @@ async function importTopics(topics, chapterIds) {
  * curriculum, so load order does not matter.
  */
 async function importConcepts(concepts) {
-  let conceptRows = 0, prereqRows = 0, misconceptionRows = 0;
+  let conceptRows = 0, misconceptionRows = 0;
 
   for (const c of concepts) {
+    const description = c.learning_objective || c.learning_outcome || null;
+    const difficulty = Number.isInteger(c.difficulty) ? c.difficulty : null;
+
     await prisma.academicConcept.upsert({
       where: { code: c.code },
       create: {
         code: c.code, canonical_name: c.name, subject: c.subject || "Unknown",
-        class_level: c.class_level, description: c.learning_outcome,
-        difficulty_band: Number.isInteger(Number(c.difficulty)) ? Number(c.difficulty) : null,
-        status: "ACTIVE", source_id: VERSION,
+        class_level: c.class_level, description, difficulty_band: difficulty,
+        concept_type: c.bloom || null, status: "ACTIVE",
+        source_id: c.source_url || VERSION,
       },
       update: {
         canonical_name: c.name, subject: c.subject || "Unknown",
-        class_level: c.class_level, description: c.learning_outcome, source_id: VERSION,
+        class_level: c.class_level, description, difficulty_band: difficulty,
+        concept_type: c.bloom || null, source_id: c.source_url || VERSION,
       },
     });
     conceptRows++;
-
-    for (const raw of String(c.prerequisites || "").split(/[;,]/)) {
-      const code = raw.trim();
-      if (!code || code === c.code) continue;
-      await prisma.conceptPrerequisite.upsert({
-        where: { concept_code_prerequisite_code: { concept_code: c.code, prerequisite_code: code } },
-        create: { concept_code: c.code, prerequisite_code: code, evidence_source_id: VERSION },
-        update: {},
-      });
-      prereqRows++;
-    }
 
     if (c.misconception) {
       await prisma.misconception.upsert({
@@ -155,7 +148,38 @@ async function importConcepts(concepts) {
       misconceptionRows++;
     }
   }
-  return { conceptRows, prereqRows, misconceptionRows };
+  return { conceptRows, misconceptionRows };
+}
+
+/**
+ * The prerequisite graph.
+ *
+ * Legacy v10 edges are excluded by the extractor, because the workbook's own
+ * validation queue marks them P0 with the production rule "DO NOT ENFORCE
+ * LEGACY HARD GATING". What remains lands at candidate strength until an SME
+ * signs it off: an unvalidated edge in a gating graph sends a student
+ * backwards through material they already know.
+ */
+async function importPrerequisites(edges = []) {
+  let rows = 0;
+  for (const e of edges) {
+    const validated = /validated|confirmed/i.test(e.validation_status || "");
+    const evidence = `${e.graph_version || VERSION}:${e.validation_status || "UNVALIDATED"}`;
+    await prisma.conceptPrerequisite.upsert({
+      where: {
+        concept_code_prerequisite_code: {
+          concept_code: e.dependent_code, prerequisite_code: e.prerequisite_code,
+        },
+      },
+      create: {
+        concept_code: e.dependent_code, prerequisite_code: e.prerequisite_code,
+        strength: validated ? 0.8 : 0.3, evidence_source_id: evidence,
+      },
+      update: { strength: validated ? 0.8 : 0.3, evidence_source_id: evidence },
+    });
+    rows++;
+  }
+  return rows;
 }
 
 async function main() {
@@ -176,7 +200,9 @@ async function main() {
   console.log(`  topics     ${t.created} created, ${t.updated} updated, ${t.orphaned} orphaned  (${verifiedTp} verified)`);
 
   const c = await importConcepts(payload.concepts);
-  console.log(`  concepts   ${c.conceptRows}  prerequisites ${c.prereqRows}  misconceptions ${c.misconceptionRows}`);
+  const edges = await importPrerequisites(payload.prerequisites);
+  console.log(`  concepts   ${c.conceptRows}  misconceptions ${c.misconceptionRows}`);
+  console.log(`  prereq edges ${edges}`);
 
   const generated = await prisma.global_chapters.count({ where: { verified: false } });
   console.log(`\n  chapters still unverified in the catalog: ${generated}`);
@@ -193,4 +219,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { importSubjects, importChapters, importTopics, importConcepts, VERSION };
+module.exports = { importSubjects, importChapters, importTopics, importConcepts, importPrerequisites, VERSION };

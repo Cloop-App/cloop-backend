@@ -254,7 +254,7 @@ model global_chapters {
   order       Int              @default(1)
   unit                  String?   @db.VarChar(200)
   source_node_id        String?   @db.VarChar(60)
-  reconciliation_status String?   @db.VarChar(40)
+  reconciliation_status String?   @db.VarChar(60)
   /// True only where the source document was reconciled against. Everything
   /// else is unverified, and must not be presented as a board syllabus.
   verified              Boolean   @default(false)

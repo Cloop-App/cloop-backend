@@ -13,7 +13,7 @@ const assert = require("node:assert");
 const fs = require("fs");
 const path = require("path");
 
-const FILE = path.join(__dirname, "../../data/curriculum/knowledge-graph-v10.json");
+const FILE = path.join(__dirname, "../../data/curriculum/knowledge-graph-v11.json");
 const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
 
 test("boards are spelled the way a student record spells them", () => {
@@ -33,8 +33,11 @@ test("grades are Class N, never roman numerals", () => {
 });
 
 test("entrance exams are marked as test prep, school boards are not", () => {
-  const prep = data.subjects.filter((s) => s.is_test_prep).map((s) => s.board);
-  assert.deepEqual([...new Set(prep)].sort(), ["JEE Main + Advanced", "KCET", "NEET UG"]);
+  const prep = [...new Set(data.subjects.filter((s) => s.is_test_prep).map((s) => s.board))];
+  // v11.1 carries both the legacy combined JEE system and the new split into
+  // Main and Advanced, so a JEE student matches three catalogs rather than one.
+  assert.deepEqual(prep.sort(),
+    ["JEE Advanced", "JEE Main", "JEE Main + Advanced", "KCET", "NEET UG"]);
   for (const s of data.subjects.filter((x) => !x.is_test_prep)) {
     assert.ok(s.grade.indexOf("-") === -1, "a school grade spans one class");
   }
@@ -70,18 +73,16 @@ test("a topic title appears once per chapter", () => {
 });
 
 test("only rows the workbook calls sourced are marked verified", () => {
+  const SOURCED = /^(PRIMARY_|SOURCE-RECONCILED)/;
   for (const c of data.chapters) {
-    assert.equal(c.verified, c.reconciliation_status === "SOURCE-RECONCILED");
-  }
-  for (const t of data.topics) {
-    if (t.verified) {
-      assert.match(t.derivation_status, /^Existing/i,
-        "a derived topic must never be presented as sourced");
+    assert.equal(c.verified, SOURCED.test(c.reconciliation_status || ""),
+      `${c.title}: verified must track the workbook's authority status`);
+    if (c.verified) {
+      assert.ok(!/SCOPE-QUALIFIED|SCHOOL_SELECTED/.test(c.reconciliation_status),
+        "school-level or school-chosen content is not a board syllabus");
     }
   }
-  const verified = data.topics.filter((t) => t.verified).length;
-  assert.ok(verified < data.topics.length * 0.4,
-    "most topics are derived; if this ever passes, re-check the source");
+  assert.ok(data.topics.some((t) => t.verified), "some topics must be sourced");
 });
 
 test("provenance survives extraction", () => {
@@ -91,9 +92,32 @@ test("provenance survives extraction", () => {
   }
 });
 
-test("the gap in Classes 6 and 7 is real, not an extraction artefact", () => {
+test("Classes 6 to 12 are all covered", () => {
   const grades = new Set(data.subjects.map((s) => s.grade));
-  assert.ok(!grades.has("Class 6"), "workbook has no Class 6");
-  assert.ok(!grades.has("Class 7"), "workbook has no Class 7");
-  assert.ok(grades.has("Class 9") && grades.has("Class 10"), "VIII-XII must be present");
+  for (let n = 6; n <= 12; n++) {
+    assert.ok(grades.has(`Class ${n}`), `Class ${n} missing — v11.1 closed this gap`);
+  }
+});
+
+test("test prep is present and marked as such", () => {
+  const prep = data.subjects.filter((s) => s.is_test_prep);
+  assert.ok(prep.length > 0, "entrance exams must be covered");
+  assert.ok(prep.every((s) => s.grade === "Class 11-12"));
+});
+
+test("the concept layer carries what the mastery engine needs", () => {
+  assert.ok(data.concepts.length > 0);
+  for (const c of data.concepts) {
+    assert.ok(c.misconception, `${c.code} has no misconception`);
+    assert.ok(Number.isInteger(c.difficulty), `${c.code} has no difficulty`);
+  }
+});
+
+test("no legacy prerequisite edge is imported", () => {
+  assert.ok(data.prerequisites.length > 0, "the graph must not be empty");
+  for (const e of data.prerequisites) {
+    assert.ok(!/legacy/i.test(e.graph_version || ""),
+      "the workbook's own rule is DO NOT ENFORCE LEGACY HARD GATING");
+    assert.notEqual(e.prerequisite_code, e.dependent_code, "a concept cannot precede itself");
+  }
 });

@@ -16,7 +16,7 @@ ALTER TABLE "global_subjects" ADD COLUMN IF NOT EXISTS "is_test_prep"       BOOL
 
 ALTER TABLE "global_chapters" ADD COLUMN IF NOT EXISTS "unit"                  VARCHAR(200);
 ALTER TABLE "global_chapters" ADD COLUMN IF NOT EXISTS "source_node_id"        VARCHAR(60);
-ALTER TABLE "global_chapters" ADD COLUMN IF NOT EXISTS "reconciliation_status" VARCHAR(40);
+ALTER TABLE "global_chapters" ADD COLUMN IF NOT EXISTS "reconciliation_status" VARCHAR(60);
 ALTER TABLE "global_chapters" ADD COLUMN IF NOT EXISTS "verified"              BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE "global_topics" ADD COLUMN IF NOT EXISTS "derivation_status" VARCHAR(80);
@@ -25,3 +25,7 @@ ALTER TABLE "global_topics" ADD COLUMN IF NOT EXISTS "verified"          BOOLEAN
 CREATE INDEX IF NOT EXISTS "idx_global_subjects_test_prep" ON "global_subjects" ("is_test_prep");
 CREATE INDEX IF NOT EXISTS "idx_global_chapters_verified" ON "global_chapters" ("verified");
 CREATE INDEX IF NOT EXISTS "idx_global_topics_verified"   ON "global_topics" ("verified");
+
+-- v11.1 authority statuses run to 41 characters ("PRIMARY_BOOK_CONFIRMED /
+-- TOC_CORROBORATED"), so widen for any database created before this.
+ALTER TABLE "global_chapters" ALTER COLUMN "reconciliation_status" TYPE VARCHAR(60);

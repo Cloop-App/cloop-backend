@@ -2,8 +2,25 @@ const { Router } = require("express");
 const prisma = require("../../lib/prisma");
 const { authenticateToken, generateToken } = require("../../middleware/auth");
 const { sendLoginNotifications } = require("../../services/notifications");
+const { autoTriggerContentGeneration } = require("../../services/curriculum-auto-trigger");
 
 const router = Router();
+
+/**
+ * Reject a request for someone else's account.
+ *
+ * These three routes authenticated the caller but never checked the id in the
+ * path against them, so any signed-in user could read, change or delete any
+ * other account by number.
+ */
+function ownAccountOnly(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id !== req.user.user_id) {
+    res.status(403).json({ error: "You may only access your own account." });
+    return null;
+  }
+  return id;
+}
 
 /**
  * POST /api/login/
@@ -17,12 +34,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Email or phone is required." });
     }
 
-    const user = await prisma.user.findFirst({
+    const user = await prisma.users.findFirst({
       where: {
-        OR: [
-          { email: emailOrPhone.toLowerCase() },
-          { phone: emailOrPhone },
-        ],
+        OR: [{ email: emailOrPhone.toLowerCase() }, { phone: emailOrPhone }],
       },
     });
 
@@ -51,17 +65,17 @@ router.post("/", async (req, res) => {
 
 /**
  * GET /api/login/users/:id
- * Get user details by ID.
- * [B2] FIX: Added authenticateToken — was previously unprotected.
+ * Get user details.
  */
 router.get("/users/:id", authenticateToken, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { user_id: req.params.id },
+    const id = ownAccountOnly(req, res);
+    if (id === null) return;
+
+    const user = await prisma.users.findUnique({
+      where: { user_id: id },
       include: {
-        grade_level: true,
-        board: true,
-        user_subjects: { include: { subject: true } },
+        subject_enrollments: { include: { subject: true } },
       },
     });
 
@@ -79,33 +93,34 @@ router.get("/users/:id", authenticateToken, async (req, res) => {
 /**
  * PUT /api/login/users/:id
  * Update user details.
- * [B2] FIX: Added authenticateToken — was previously unprotected.
+ *
+ * grade_level and board are stored as text ("Class 9", "Central Board of
+ * Secondary Education") and subjects as short codes, which is how the
+ * curriculum catalog is keyed.
  */
 router.put("/users/:id", authenticateToken, async (req, res) => {
   try {
-    const { name, grade_level_id, board_id, subjects, language_id, study_goal, phone } =
-      req.body;
+    const id = ownAccountOnly(req, res);
+    if (id === null) return;
 
-    const user = await prisma.user.update({
-      where: { user_id: req.params.id },
+    const { name, grade_level, board, subjects, preferred_language, study_goal, phone } = req.body;
+
+    const user = await prisma.users.update({
+      where: { user_id: id },
       data: {
         ...(name !== undefined && { name }),
-        ...(grade_level_id !== undefined && { grade_level_id }),
-        ...(board_id !== undefined && { board_id }),
-        ...(language_id !== undefined && { preferred_language: String(language_id) }),
+        ...(grade_level !== undefined && { grade_level }),
+        ...(board !== undefined && { board }),
+        ...(preferred_language !== undefined && { preferred_language }),
         ...(study_goal !== undefined && { study_goal }),
         ...(phone !== undefined && { phone }),
+        ...(Array.isArray(subjects) && { subjects }),
       },
     });
 
-    // If subjects array provided, sync user subjects
-    if (subjects && Array.isArray(subjects)) {
-      await prisma.userSubject.deleteMany({ where: { user_id: req.params.id } });
-      for (const subjectId of subjects) {
-        await prisma.userSubject.create({
-          data: { user_id: req.params.id, subject_id: subjectId },
-        });
-      }
+    // Subjects, board or grade changing all change which catalog applies.
+    if (subjects !== undefined || grade_level !== undefined || board !== undefined) {
+      await autoTriggerContentGeneration(id);
     }
 
     return res.json({ user });
@@ -118,11 +133,13 @@ router.put("/users/:id", authenticateToken, async (req, res) => {
 /**
  * DELETE /api/login/users/:id
  * Delete a user account.
- * [B2] FIX: Added authenticateToken — was previously unprotected.
  */
 router.delete("/users/:id", authenticateToken, async (req, res) => {
   try {
-    await prisma.user.delete({ where: { user_id: req.params.id } });
+    const id = ownAccountOnly(req, res);
+    if (id === null) return;
+
+    await prisma.users.delete({ where: { user_id: id } });
     return res.json({ ok: true });
   } catch (err) {
     console.error("Delete user error:", err);

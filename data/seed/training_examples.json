@@ -1,0 +1,57 @@
+[
+  {
+    "id": "TR-001",
+    "task": "STUDENT_DIAGNOSIS",
+    "input": {
+      "question": "Constant velocity: net force?",
+      "response": "Non-zero because it is moving."
+    },
+    "expected": {
+      "error": "ERR-CONCEPT",
+      "misconception": "MIS-PHY-002",
+      "intervention": "INT-005"
+    },
+    "quality": 0.97
+  },
+  {
+    "id": "TR-002",
+    "task": "MISCONCEPTION_DETECTION",
+    "input": {
+      "question": "Expand (x+3)^2.",
+      "response": "x^2+9"
+    },
+    "expected": {
+      "misconception": "MIS-MATH-001"
+    },
+    "quality": 0.98
+  },
+  {
+    "id": "TR-003",
+    "task": "ADAPTIVE_NEXT_ACTION",
+    "input": {
+      "mastery": {
+        "PHY-MEC-002": 0.43,
+        "PHY-MEC-001": 0.61,
+        "PHY-VEC-001": 0.47
+      }
+    },
+    "expected": {
+      "action": "INT-001",
+      "reason": "Diagnose weak free-body-diagram understanding before more difficult application."
+    },
+    "quality": 0.94
+  },
+  {
+    "id": "TR-004",
+    "task": "QUESTION_EVALUATION",
+    "input": {
+      "question": "2 kg body: 2 to 6 m/s; change in kinetic energy?",
+      "answer": "32 J"
+    },
+    "expected": {
+      "valid": true,
+      "verification": "deterministic_calculation"
+    },
+    "quality": 0.99
+  }
+]

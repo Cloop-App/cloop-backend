@@ -1,0 +1,32 @@
+[
+  {
+    "id": "MIS-MATH-001",
+    "concept": "MATH-ALG-003",
+    "belief": "(a+b)^2=a^2+b^2",
+    "correct_model": "(a+b)^2=a^2+2ab+b^2"
+  },
+  {
+    "id": "MIS-MATH-002",
+    "concept": "MATH-TRIG-001",
+    "belief": "Any trigonometric ratio can be used interchangeably.",
+    "correct_model": "Ratio selection depends on the chosen angle and sides."
+  },
+  {
+    "id": "MIS-PHY-001",
+    "concept": "PHY-MEC-001",
+    "belief": "Action-reaction forces act on the same object.",
+    "correct_model": "They act on two different interacting bodies."
+  },
+  {
+    "id": "MIS-PHY-002",
+    "concept": "PHY-KIN-001",
+    "belief": "Constant velocity requires a non-zero net force.",
+    "correct_model": "Constant velocity means zero acceleration and zero net force."
+  },
+  {
+    "id": "MIS-PHY-003",
+    "concept": "PHY-VEC-001",
+    "belief": "Vector components are always positive magnitudes.",
+    "correct_model": "Components are signed projections along chosen axes."
+  }
+]

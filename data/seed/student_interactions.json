@@ -1,0 +1,68 @@
+[
+  {
+    "id": "INTX-001",
+    "student": "STU-SYN-001",
+    "question": "Q-PHY-001",
+    "response": "Non-zero because it is moving.",
+    "correct": false,
+    "error": "ERR-CONCEPT",
+    "misconception": "MIS-PHY-002",
+    "intervention": "INT-005",
+    "confidence": 0.91
+  },
+  {
+    "id": "INTX-002",
+    "student": "STU-SYN-001",
+    "question": "Q-PHY-003",
+    "response": "10 sin 60 = 8.66 N",
+    "correct": false,
+    "error": "ERR-VECTOR",
+    "misconception": "MIS-PHY-003",
+    "intervention": "INT-002",
+    "confidence": 0.79
+  },
+  {
+    "id": "INTX-003",
+    "student": "STU-SYN-002",
+    "question": "Q-MATH-002",
+    "response": "x^2+9",
+    "correct": false,
+    "error": "ERR-ALG",
+    "misconception": "MIS-MATH-001",
+    "intervention": "INT-003",
+    "confidence": 0.95
+  },
+  {
+    "id": "INTX-004",
+    "student": "STU-SYN-002",
+    "question": "Q-MATH-003",
+    "response": "5/3",
+    "correct": false,
+    "error": "ERR-TRIG",
+    "misconception": "MIS-MATH-002",
+    "intervention": "INT-004",
+    "confidence": 0.88
+  },
+  {
+    "id": "INTX-005",
+    "student": "STU-SYN-001",
+    "question": "Q-PHY-002",
+    "response": "6 N",
+    "correct": true,
+    "error": null,
+    "misconception": null,
+    "intervention": null,
+    "confidence": 0.91
+  },
+  {
+    "id": "INTX-006",
+    "student": "STU-SYN-002",
+    "question": "Q-MATH-001",
+    "response": "2,3",
+    "correct": true,
+    "error": null,
+    "misconception": null,
+    "intervention": null,
+    "confidence": 0.89
+  }
+]

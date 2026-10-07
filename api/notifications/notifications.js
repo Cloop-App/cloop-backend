@@ -12,10 +12,8 @@ router.use(authenticateToken);
  */
 router.get("/", async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
-    const notifications = await prisma.notification.findMany({
-      where: { user_id: userId },
+    const notifications = await prisma.notifications.findMany({
+      where: { user_id: req.user.user_id },
       orderBy: { created_at: "desc" },
     });
 
@@ -29,15 +27,22 @@ router.get("/", async (req, res) => {
 /**
  * POST /api/notifications/:id/read
  * Mark a notification as read.
+ *
+ * Scoped to the caller. Keyed on the id alone, any signed-in user could mark
+ * — or delete, below — another user's notifications.
  */
 router.post("/:id/read", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
 
-    await prisma.notification.update({
-      where: { id },
+    const { count } = await prisma.notifications.updateMany({
+      where: { id, user_id: req.user.user_id },
       data: { is_read: true },
     });
+
+    if (count === 0) {
+      return res.status(404).json({ error: "Notification not found." });
+    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -52,10 +57,8 @@ router.post("/:id/read", async (req, res) => {
  */
 router.get("/unread-count", async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
-    const count = await prisma.notification.count({
-      where: { user_id: userId, is_read: false },
+    const count = await prisma.notifications.count({
+      where: { user_id: req.user.user_id, is_read: false },
     });
 
     return res.json({ count });
@@ -71,9 +74,15 @@ router.get("/unread-count", async (req, res) => {
  */
 router.delete("/:id", async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id, 10);
 
-    await prisma.notification.delete({ where: { id } });
+    const { count } = await prisma.notifications.deleteMany({
+      where: { id, user_id: req.user.user_id },
+    });
+
+    if (count === 0) {
+      return res.status(404).json({ error: "Notification not found." });
+    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -88,10 +97,8 @@ router.delete("/:id", async (req, res) => {
  */
 router.post("/read-all", async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
-    await prisma.notification.updateMany({
-      where: { user_id: userId, is_read: false },
+    await prisma.notifications.updateMany({
+      where: { user_id: req.user.user_id, is_read: false },
       data: { is_read: true },
     });
 

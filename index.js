@@ -57,6 +57,7 @@ app.use("/api/normal-chat", require("./api/normal-chat/normal-chat"));
 app.use("/api/content-generation", require("./api/content-generation/content-generation"));
 app.use("/api/saved-topics", require("./api/saved-topics/saved-topics"));
 app.use("/api/notifications", require("./api/notifications/notifications"));
+app.use("/api/learning", require("./api/learning/learning"));
 
 // ─── 404 Handler ─────────────────────────────────────────────────
 app.use((req, res) => {

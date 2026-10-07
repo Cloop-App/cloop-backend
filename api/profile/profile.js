@@ -10,26 +10,16 @@ router.use(authenticateToken);
 
 /**
  * GET /api/profile/
- * Get the authenticated user's profile with subjects and chapter completion stats.
+ * The user's profile, with the subjects they are enrolled in.
  */
 router.get("/", async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.users.findUnique({
       where: { user_id: req.user.user_id },
       include: {
-        grade_level: true,
-        board: true,
-        user_subjects: {
+        subject_enrollments: {
           include: {
-            subject: {
-              include: {
-                chapters: {
-                  include: {
-                    _count: { select: { topics: true } },
-                  },
-                },
-              },
-            },
+            subject: { include: { chapters: { select: { id: true } } } },
           },
         },
       },
@@ -48,8 +38,8 @@ router.get("/", async (req, res) => {
 
 /**
  * PUT /api/profile/update
- * Update the authenticated user's profile.
- * Triggers curriculum auto-generation when subjects change.
+ * Update the profile. Subjects are short codes ("SCI"), and board and grade
+ * are text, since that is how the shared curriculum catalog is keyed.
  */
 router.put("/update", async (req, res) => {
   try {
@@ -65,28 +55,22 @@ router.put("/update", async (req, res) => {
 
     const userId = req.user.user_id;
 
-    const user = await prisma.user.update({
+    const user = await prisma.users.update({
       where: { user_id: userId },
       data: {
-        ...(grade_level !== undefined && { grade_level_id: grade_level }),
-        ...(board !== undefined && { board_id: board }),
+        ...(grade_level !== undefined && { grade_level }),
+        ...(board !== undefined && { board }),
         ...(preferred_language !== undefined && { preferred_language }),
         ...(study_goal !== undefined && { study_goal }),
         ...(avatar_choice !== undefined && { avatar_choice }),
         ...(avatar_url !== undefined && { avatar_url }),
+        ...(Array.isArray(subjects) && { subjects }),
       },
     });
 
-    // Sync subjects if provided
-    if (subjects && Array.isArray(subjects)) {
-      await prisma.userSubject.deleteMany({ where: { user_id: userId } });
-      for (const subjectId of subjects) {
-        await prisma.userSubject.create({
-          data: { user_id: userId, subject_id: subjectId },
-        });
-      }
-
-      // Auto-trigger content generation for new subjects
+    // Board and grade select the catalog, so a change to either re-points the
+    // student's subjects at a different one.
+    if (subjects !== undefined || grade_level !== undefined || board !== undefined) {
       await autoTriggerContentGeneration(userId);
     }
 
@@ -99,22 +83,21 @@ router.put("/update", async (req, res) => {
 
 /**
  * POST /api/profile/push-token
- * Register an Expo push token.
- * [B7] NOTE: This is mobile-only. Web clients should not call this endpoint.
- * Returns success as a no-op for web clients.
+ * Register an Expo push token. Mobile-only; web clients may post nothing and
+ * get a success back.
  */
 router.post("/push-token", async (req, res) => {
   try {
     const { expoPushToken } = req.body;
 
     if (!expoPushToken) {
-      // Web clients may hit this — return success silently
       return res.json({ success: true });
     }
 
-    // Store push token — in a real implementation this would be persisted
-    // For now, this is a no-op placeholder that doesn't break web clients
-    console.log(`Push token registered for user ${req.user.user_id}: ${expoPushToken}`);
+    await prisma.users.update({
+      where: { user_id: req.user.user_id },
+      data: { expo_push_token: expoPushToken },
+    });
 
     return res.json({ success: true });
   } catch (err) {
@@ -125,29 +108,32 @@ router.post("/push-token", async (req, res) => {
 
 /**
  * POST /api/profile/add-subject
- * Add a subject to the user's enrolled subjects.
+ * Add a subject and queue its curriculum if nobody has generated it yet.
  */
 router.post("/add-subject", async (req, res) => {
   try {
-    const { subject_id } = req.body;
+    const { subject } = req.body;
     const userId = req.user.user_id;
 
-    if (!subject_id) {
-      return res.status(400).json({ error: "subject_id is required." });
+    if (!subject) {
+      return res.status(400).json({ error: "subject is required." });
     }
 
-    const userSubject = await prisma.userSubject.create({
-      data: { user_id: userId, subject_id },
-    });
+    const user = await prisma.users.findUnique({ where: { user_id: userId } });
+    const code = String(subject).trim().toUpperCase();
 
-    // Auto-trigger content generation
-    await autoTriggerContentGeneration(userId);
-
-    return res.json({ success: true, userSubject });
-  } catch (err) {
-    if (err.code === "P2002") {
+    if (user.subjects.includes(code)) {
       return res.status(409).json({ error: "Subject already added." });
     }
+
+    await prisma.users.update({
+      where: { user_id: userId },
+      data: { subjects: [...user.subjects, code] },
+    });
+
+    const subjects = await autoTriggerContentGeneration(userId);
+    return res.json({ success: true, subjects: subjects.map((s) => s.name) });
+  } catch (err) {
     console.error("Add subject error:", err);
     return res.status(500).json({ error: "Internal server error." });
   }
@@ -155,21 +141,26 @@ router.post("/add-subject", async (req, res) => {
 
 /**
  * DELETE /api/profile/remove-subject
- * Remove a subject from the user's enrolled subjects.
+ * Stop studying a subject. Progress already recorded in it is kept.
  */
 router.delete("/remove-subject", async (req, res) => {
   try {
-    const { subject_id } = req.body;
+    const { subject } = req.body;
     const userId = req.user.user_id;
 
-    if (!subject_id) {
-      return res.status(400).json({ error: "subject_id is required." });
+    if (!subject) {
+      return res.status(400).json({ error: "subject is required." });
     }
 
-    await prisma.userSubject.deleteMany({
-      where: { user_id: userId, subject_id },
+    const user = await prisma.users.findUnique({ where: { user_id: userId } });
+    const code = String(subject).trim().toUpperCase();
+
+    await prisma.users.update({
+      where: { user_id: userId },
+      data: { subjects: user.subjects.filter((s) => s.toUpperCase() !== code) },
     });
 
+    await autoTriggerContentGeneration(userId);
     return res.json({ success: true });
   } catch (err) {
     console.error("Remove subject error:", err);
@@ -179,48 +170,38 @@ router.delete("/remove-subject", async (req, res) => {
 
 /**
  * GET /api/profile/chat-history
- * Get the user's topic chat history.
+ * Topics the user has tutoring sessions for, most recent first.
  */
 router.get("/chat-history", async (req, res) => {
   try {
-    const userId = req.user.user_id;
-
-    const chatTopics = await prisma.topicChat.findMany({
-      where: { user_id: userId },
-      select: { topic_id: true, is_completed: true, completion_percent: true, created_at: true },
-      distinct: ["topic_id"],
-      orderBy: { created_at: "desc" },
+    const sessions = await prisma.tutor_sessions.findMany({
+      where: { user_id: req.user.user_id },
+      orderBy: { updated_at: "desc" },
+      include: {
+        topic: { include: { chapter: { include: { subject: true } } } },
+      },
     });
 
-    const chatHistory = await Promise.all(
-      chatTopics.map(async (chat) => {
-        const topic = await prisma.topic.findUnique({
-          where: { id: chat.topic_id },
-          include: {
-            chapter: {
-              include: { subject: true },
-            },
-          },
-        });
+    const progress = await prisma.user_topic_progress.findMany({
+      where: { user_id: req.user.user_id, topic_id: { in: sessions.map((s) => s.topic_id) } },
+    });
+    const byTopic = new Map(progress.map((p) => [p.topic_id, p]));
 
-        const lastMessage = await prisma.topicChat.findFirst({
-          where: { topic_id: chat.topic_id, user_id: userId },
-          orderBy: { created_at: "desc" },
-        });
-
+    return res.json({
+      chatHistory: sessions.map((session) => {
+        const seen = byTopic.get(session.topic_id);
         return {
-          topic_id: chat.topic_id,
-          title: topic?.title || "Unknown Topic",
-          subject: topic?.chapter?.subject?.name || "Unknown Subject",
-          chapter: topic?.chapter?.title || "Unknown Chapter",
-          last_activity: lastMessage?.created_at || chat.created_at,
-          is_completed: lastMessage?.is_completed || false,
-          completion_percent: lastMessage?.completion_percent || 0,
+          topic_id: session.topic_id,
+          title: session.topic?.title || "Unknown Topic",
+          subject: session.topic?.chapter?.subject?.name || "Unknown Subject",
+          chapter: session.topic?.chapter?.title || "Unknown Chapter",
+          last_activity: session.updated_at || session.started_at,
+          phase: session.state?.phase || null,
+          is_completed: seen?.is_completed ?? !session.is_active,
+          completion_percent: Number(seen?.completion_percent ?? 0),
         };
-      })
-    );
-
-    return res.json({ chatHistory });
+      }),
+    });
   } catch (err) {
     console.error("Chat history error:", err);
     return res.status(500).json({ error: "Internal server error." });
@@ -229,70 +210,54 @@ router.get("/chat-history", async (req, res) => {
 
 /**
  * GET /api/profile/metrics
- * Get aggregated learning metrics for the user.
+ * Aggregate progress across the subjects the user studies.
  */
 router.get("/metrics", async (req, res) => {
   try {
     const userId = req.user.user_id;
 
-    const userSubjects = await prisma.userSubject.findMany({
+    const enrollments = await prisma.user_subject_enrollment.findMany({
       where: { user_id: userId },
-      include: { subject: true },
+      include: { subject: { include: { chapters: { include: { topics: { select: { id: true } } } } } } },
     });
 
-    const totalSubjects = userSubjects.length;
+    const chapterProgress = await prisma.user_chapter_progress.findMany({ where: { user_id: userId } });
+    const completedByChapter = new Map(chapterProgress.map((p) => [p.chapter_id, p]));
 
-    // Gather chapter/topic stats per subject
-    const subjectProgress = await Promise.all(
-      userSubjects.map(async (us) => {
-        const chapters = await prisma.chapter.findMany({
-          where: { subject_id: us.subject_id },
-          include: { topics: true },
-        });
+    const subjectProgress = enrollments.map((enrollment) => {
+      const chapters = enrollment.subject.chapters;
+      const totalTopics = chapters.reduce((sum, ch) => sum + ch.topics.length, 0);
+      const completedTopics = chapters.reduce(
+        (sum, ch) => sum + (completedByChapter.get(ch.id)?.completed_topics ?? 0),
+        0
+      );
 
-        const totalChapters = chapters.length;
-        const totalTopics = chapters.reduce((sum, ch) => sum + ch.topics.length, 0);
+      return {
+        subject_id: enrollment.subject_id,
+        subject_name: enrollment.subject.name,
+        totalChapters: chapters.length,
+        totalTopics,
+        completedTopics,
+      };
+    });
 
-        // Count completed topics by checking for completed topic chats
-        const completedTopicChats = await prisma.topicChat.findMany({
-          where: {
-            user_id: userId,
-            is_completed: true,
-            topic: { chapter: { subject_id: us.subject_id } },
-          },
-          distinct: ["topic_id"],
-        });
-
-        return {
-          subject_id: us.subject_id,
-          subject_name: us.subject.name,
-          totalChapters,
-          totalTopics,
-          completedTopics: completedTopicChats.length,
-        };
-      })
-    );
-
-    const totalChapters = subjectProgress.reduce((sum, sp) => sum + sp.totalChapters, 0);
-    const completedChapters = 0; // Computed from topic completion — simplified
-
-    // Get strong/weak topics from reports
-    const reports = await prisma.userTopicReport.findMany({
+    const reports = await prisma.user_topic_reports.findMany({
       where: { user_id: userId },
       orderBy: { created_at: "desc" },
       take: 50,
     });
 
-    const strongTopics = reports.filter((r) => r.score_percent >= 75).length;
-    const weakTopics = reports.filter((r) => r.score_percent < 50).length;
-
     return res.json({
-      totalSubjects,
-      completedSubjects: 0,
-      totalChapters,
-      completedChapters,
-      strongTopics,
-      weakTopics,
+      totalSubjects: enrollments.length,
+      completedSubjects: subjectProgress.filter(
+        (s) => s.totalTopics > 0 && s.completedTopics >= s.totalTopics
+      ).length,
+      totalChapters: subjectProgress.reduce((sum, s) => sum + s.totalChapters, 0),
+      completedChapters: chapterProgress.filter(
+        (p) => p.total_topics > 0 && p.completed_topics >= p.total_topics
+      ).length,
+      strongTopics: reports.filter((r) => r.score_percent >= 75).length,
+      weakTopics: reports.filter((r) => r.score_percent < 50).length,
       subjectProgress,
     });
   } catch (err) {
@@ -303,67 +268,62 @@ router.get("/metrics", async (req, res) => {
 
 /**
  * GET /api/profile/learning-analytics
- * [B4] Learning analytics endpoint — returns time-series learning data and topic trends.
+ * Time-series learning data and per-subject trends.
  */
 router.get("/learning-analytics", async (req, res) => {
   try {
     const userId = req.user.user_id;
 
-    // Recent reports ordered by date for time-series view
-    const reports = await prisma.userTopicReport.findMany({
+    const reports = await prisma.user_topic_reports.findMany({
       where: { user_id: userId },
       orderBy: { created_at: "desc" },
       take: 100,
-      include: {
-        topic: {
-          include: {
-            chapter: {
-              include: { subject: true },
-            },
-          },
-        },
-      },
+      include: { topic: { include: { chapter: { include: { subject: true } } } } },
     });
 
-    // Aggregate by day
+    // Time comes from study_sessions, which is the only place it is measured.
+    const sessions = await prisma.study_sessions.findMany({
+      where: { user_id: userId },
+      orderBy: { start_time: "desc" },
+      take: 500,
+    });
+
     const dailyStats = {};
+    const dayOf = (date) => new Date(date).toISOString().slice(0, 10);
+    const dayBucket = (day) =>
+      (dailyStats[day] ??= {
+        date: day,
+        sessions: 0,
+        total_questions: 0,
+        correct_answers: 0,
+        time_spent_seconds: 0,
+      });
+
     for (const report of reports) {
-      const day = report.created_at.toISOString().slice(0, 10);
-      if (!dailyStats[day]) {
-        dailyStats[day] = {
-          date: day,
-          sessions: 0,
-          total_questions: 0,
-          correct_answers: 0,
-          time_spent_seconds: 0,
-        };
-      }
-      dailyStats[day].sessions += 1;
-      dailyStats[day].total_questions += report.total_questions;
-      dailyStats[day].correct_answers += report.correct_answers;
-      dailyStats[day].time_spent_seconds += report.time_spent_seconds;
+      const bucket = dayBucket(dayOf(report.created_at));
+      bucket.sessions += 1;
+      bucket.total_questions += report.total_questions;
+      bucket.correct_answers += report.correct_answers;
+    }
+    for (const session of sessions) {
+      dayBucket(dayOf(session.start_time)).time_spent_seconds += session.duration_seconds || 0;
     }
 
-    // Topic trends — average score per subject
     const subjectScores = {};
     for (const report of reports) {
-      const subjectName = report.topic?.chapter?.subject?.name || "Unknown";
-      if (!subjectScores[subjectName]) {
-        subjectScores[subjectName] = { total: 0, count: 0 };
-      }
-      subjectScores[subjectName].total += report.score_percent;
-      subjectScores[subjectName].count += 1;
+      const name = report.topic?.chapter?.subject?.name || "Unknown";
+      subjectScores[name] ??= { total: 0, count: 0 };
+      subjectScores[name].total += report.score_percent;
+      subjectScores[name].count += 1;
     }
-
-    const topicTrends = Object.entries(subjectScores).map(([name, data]) => ({
-      subject: name,
-      average_score: Math.round(data.total / data.count),
-      sessions: data.count,
-    }));
 
     return res.json({
       daily: Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date)),
-      topicTrends,
+      topicTrends: Object.entries(subjectScores).map(([subject, data]) => ({
+        subject,
+        average_score: Math.round(data.total / data.count),
+        sessions: data.count,
+      })),
       recentReports: reports.slice(0, 10).map((r) => ({
         id: r.id,
         topic_id: r.topic_id,
@@ -372,9 +332,11 @@ router.get("/learning-analytics", async (req, res) => {
         score_percent: r.score_percent,
         star_rating: r.star_rating,
         performance_level: r.performance_level,
-        top_error_types: r.top_error_types,
-        weak_goals: r.weak_goals,
-        time_spent_seconds: r.time_spent_seconds,
+        // The report's detail moved into metrics_json when the mastery report
+        // started being computed from the session's own tallies.
+        top_error_types: r.metrics_json?.top_error_types ?? [],
+        weak_goals: r.metrics_json?.weak_goals ?? [],
+        goals_covered: r.metrics_json?.goals_covered ?? null,
         created_at: r.created_at,
       })),
     });

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "INT-001",
+    "type": "SOCRATIC_DIAGNOSTIC",
+    "goal": "Expose the student's mental model before explanation.",
+    "targets": [
+      "MIS-PHY-001",
+      "PHY-MEC-002"
+    ]
+  },
+  {
+    "id": "INT-002",
+    "type": "VISUAL_REPRESENTATION",
+    "goal": "Use a labelled vector diagram.",
+    "targets": [
+      "MIS-PHY-003",
+      "PHY-VEC-001"
+    ]
+  },
+  {
+    "id": "INT-003",
+    "type": "COUNTEREXAMPLE",
+    "goal": "Disprove an incorrect algebraic rule numerically.",
+    "targets": [
+      "MIS-MATH-001",
+      "MATH-ALG-003"
+    ]
+  },
+  {
+    "id": "INT-004",
+    "type": "WORKED_EXAMPLE",
+    "goal": "Demonstrate correct trigonometric ratio selection.",
+    "targets": [
+      "MIS-MATH-002",
+      "MATH-TRIG-001"
+    ]
+  },
+  {
+    "id": "INT-005",
+    "type": "PREREQUISITE_REMEDIATION",
+    "goal": "Repair an upstream concept before retrying the target.",
+    "targets": [
+      "PHY-KIN-001",
+      "PHY-MEC-001"
+    ]
+  },
+  {
+    "id": "INT-006",
+    "type": "RETEST",
+    "goal": "Verify transfer after intervention.",
+    "targets": [
+      "MATH-ALG-002",
+      "PHY-MEC-002"
+    ]
+  }
+]

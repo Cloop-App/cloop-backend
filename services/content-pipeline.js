@@ -2,34 +2,31 @@ const prisma = require("../lib/prisma");
 const { chatCompletion } = require("./openai");
 
 /**
- * Generate curriculum content (chapters + topics + goals) for a user's subject.
- * This is called by the background processor or directly via API.
+ * Generate a curriculum — chapters, topics and learning goals — for one
+ * board + grade + subject, into the shared catalog.
  *
- * @param {string} userId
- * @param {number} subjectId
+ * Generation is per board+grade+subject, not per user. Every Class 9 CBSE
+ * student studying Science reads the same chapters, so generating them once
+ * is both correct and the only way "regenerate" can mean anything: the old
+ * per-user job wrote chapters keyed on subject_id alone, so users silently
+ * shared rows they each believed were their own.
+ *
+ * @param {object} status - a global_curriculum_status row
  */
-async function generateSubjectContent(userId, subjectId) {
-  const user = await prisma.user.findUnique({
-    where: { user_id: userId },
-    include: { grade_level: true, board: true },
-  });
+async function generateCurriculum(status) {
+  const { board, grade, subject_name: subjectName } = status;
 
-  const subject = await prisma.subject.findUnique({
-    where: { id: subjectId },
-  });
+  const key = { board_grade_subject_name: { board, grade, subject_name: subjectName } };
 
-  if (!user || !subject) {
-    throw new Error("User or subject not found");
-  }
-
-  // Update job status
-  await prisma.contentGenerationJob.update({
-    where: { user_id_subject_id: { user_id: userId, subject_id: subjectId } },
-    data: { status: "processing" },
+  await prisma.global_curriculum_status.update({
+    where: key,
+    data: { status: "processing", generation_started_at: new Date(), error_message: null },
   });
 
   try {
-    const prompt = `Generate a structured curriculum for a ${user.grade_level?.name || "student"} studying ${subject.name} under the ${user.board?.name || "general"} board.
+    const subject = await resolveSubject(status);
+
+    const prompt = `Generate a structured curriculum for a ${grade} student studying ${subjectName} under the ${board} board.
 
 Return a JSON object with this structure:
 {
@@ -54,58 +51,95 @@ Return a JSON object with this structure:
 
 Generate 5-8 chapters with 3-5 topics each, and 2-4 learning goals per topic.`;
 
-    const response = await chatCompletion(
-      [{ role: "system", content: prompt }],
-      { jsonMode: true }
-    );
+    const response = await chatCompletion([{ role: "system", content: prompt }], {
+      jsonMode: true,
+    });
 
     const curriculum = JSON.parse(response);
-
-    // Persist chapters, topics, and goals
-    for (const chapter of curriculum.chapters) {
-      const savedChapter = await prisma.chapter.create({
-        data: {
-          title: chapter.title,
-          subject_id: subjectId,
-          order: chapter.order || 0,
-        },
-      });
-
-      for (const topic of chapter.topics || []) {
-        const savedTopic = await prisma.topic.create({
-          data: {
-            title: topic.title,
-            content: topic.content || null,
-            chapter_id: savedChapter.id,
-            order: topic.order || 0,
-          },
-        });
-
-        for (const goal of topic.goals || []) {
-          await prisma.topicGoal.create({
-            data: {
-              topic_id: savedTopic.id,
-              title: goal.title,
-              description: goal.description || null,
-              order: goal.order || 0,
-            },
-          });
-        }
-      }
+    if (!Array.isArray(curriculum.chapters) || curriculum.chapters.length === 0) {
+      throw new Error("Model returned no chapters");
     }
 
-    // Mark job as completed
-    await prisma.contentGenerationJob.update({
-      where: { user_id_subject_id: { user_id: userId, subject_id: subjectId } },
-      data: { status: "completed" },
+    await persistCurriculum(subject.id, curriculum.chapters);
+
+    await prisma.global_curriculum_status.update({
+      where: key,
+      data: {
+        status: "completed",
+        chapters_generated: true,
+        topics_generated: true,
+        goals_generated: true,
+        global_subject_id: subject.id,
+        generation_completed_at: new Date(),
+      },
     });
   } catch (err) {
-    await prisma.contentGenerationJob.update({
-      where: { user_id_subject_id: { user_id: userId, subject_id: subjectId } },
-      data: { status: "failed", error: err.message },
+    await prisma.global_curriculum_status.update({
+      where: key,
+      data: { status: "failed", error_message: err.message },
     });
     throw err;
   }
 }
 
-module.exports = { generateSubjectContent };
+/** The catalog entry this status row belongs to, created if it is missing. */
+async function resolveSubject(status) {
+  if (status.global_subject_id) {
+    const known = await prisma.global_subjects.findUnique({
+      where: { id: status.global_subject_id },
+    });
+    if (known) return known;
+  }
+
+  const { board, grade, subject_name: name } = status;
+  const existing = await prisma.global_subjects.findUnique({
+    where: { board_grade_name: { board, grade, name } },
+  });
+  if (existing) return existing;
+
+  return prisma.global_subjects.create({ data: { board, grade, name } });
+}
+
+/**
+ * Write the generated tree.
+ *
+ * global_topics carries subject_id as well as chapter_id, so it is set here
+ * rather than left to be joined through the chapter — the tutor reads it
+ * directly when recording a turn.
+ */
+async function persistCurriculum(subjectId, chapters) {
+  for (const [chapterIndex, chapter] of chapters.entries()) {
+    const savedChapter = await prisma.global_chapters.create({
+      data: {
+        subject_id: subjectId,
+        title: chapter.title,
+        order: chapter.order || chapterIndex + 1,
+      },
+    });
+
+    for (const [topicIndex, topic] of (chapter.topics || []).entries()) {
+      const savedTopic = await prisma.global_topics.create({
+        data: {
+          chapter_id: savedChapter.id,
+          subject_id: subjectId,
+          title: topic.title,
+          content: topic.content || null,
+          order: topic.order || topicIndex + 1,
+        },
+      });
+
+      for (const [goalIndex, goal] of (topic.goals || []).entries()) {
+        await prisma.global_topic_goals.create({
+          data: {
+            topic_id: savedTopic.id,
+            title: goal.title,
+            description: goal.description || null,
+            order: goal.order || goalIndex + 1,
+          },
+        });
+      }
+    }
+  }
+}
+
+module.exports = { generateCurriculum, persistCurriculum };
